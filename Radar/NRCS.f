@@ -65,17 +65,20 @@ c Déclaration des variables
         character*80 fout2 ! fichier de sortie sans ecume
         character*80 fin1  ! fichier d'entrée des parametres
         character*80 pathout ! chemin pour les fichiers de sortie
+        character*80 KudryFilter1 ! filename of lookup table for Kudryavtsev filter function 1
+        character*80 KudryFilter2 ! filename of lookup table for Kudryavtsev filter function 2
+        character*80 KudryFilter3 ! filename of lookup table for Kudryavtsev filter function 3
         character*1 cVar
         character*1  cepsi
         character*1  csigneeps
         character*1  cSpectre
         character*1  cType
-        character*2  cCouvEcume
+        character*16  cCouvEcume
         character*1  cEmisEcume
         character*1  cCD
      	character*1  cAtmo
      	character*1  cSwell
-        character*80 sautligne
+        character*80 jump_line
         character*40 Modepsi
         character*40 ModVarPente
         character*40 ModSpectre
@@ -357,8 +360,20 @@ c        PI2=2.0D0*acos(-1.0D0)
                         enddo
                 enddo
         enddo
+c----------- Process Time and Date of Program Execution -----------        
+        call date_and_time(date, time)
+        date = date(7:8)//'_'//date(5:6)//'_'//date(1:4)
+        time = time(1:2)//'_'//time(3:4)//'_'//time(5:6)
 
-        call getarg (1, fin1)
+c------------ Management of Input Output Files ----------------
+c Lookup table for Kudryavtsev filters        
+        KudryFilter1 = 'Data/Kudryavtsev_Spectrum/filterF.dat'
+        KudryFilter2 = 'Data/Kudryavtsev_Spectrum/filterFres.dat' 
+        KudryFilter3 = 'Data/Kudryavtsev_Spectrum/filterPhi.dat'  
+c Identify file of input parameters
+        call getarg (1, fin1)                   ! get 1st parameter
+                                                ! passed to function
+
         inquire (file = fin1, exist = fin1exist)
         if (.not. fin1exist) then
 	  call getenv ('inputFortran', fin1)
@@ -370,11 +385,20 @@ c        PI2=2.0D0*acos(-1.0D0)
             stop
           else
             fin1 = fin1(1:lnblnk(fin1))//"/NRCS.p"
+            inquire (file = fin1, exist = fin1exist)
+            if (.not. fin1exist) then
+            print*, 'Invalid input file and invalid default file: ',
+     &  fin1
+            print*, '-- ABORT -- '
+            stop
+            else    
             print*, 'Pas de nom de fichier input specifié ou valide.'
             print*, 'Utilisation de fichier par defaut ', fin1
+            endif
           endif
 	endif
-     	open (unit=30,file=fin1,status='unknown',err=60)
+
+     	open (unit=30,file=fin1,status='unknown',err=60, action='read')
         call getenv ('outputFortran', pathOut)
         if (pathOut.eq.'') then
             print*, 'La variable d''environnement ''outputFortran'' pour
@@ -393,10 +417,10 @@ c     &,status='unknown',err=70)
 c----------------------------------------------------------------------
 
 c------------------ ENTREE DES VARIABLES  -----------------------------
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
      	read (30,*) lambda
        	freq = 3.D08/lambda
        	nu = 3.D-01/lambda
@@ -404,30 +428,30 @@ c------------------ ENTREE DES VARIABLES  -----------------------------
         call extr_val(kdtab, nkd, kdmin, kdmax)
         call readvec(theta, 30, ntheta)
         call extr_val(theta, ntheta, thetamin, theta_max)
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         call readvec(Wind, 30, nWind)
         call extr_val(Wind, nWind, Windmin, Windmax)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
        	read (30,*) alt
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) cCD               ! cCD mod. coefficient trainee
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         call readvec(SST, 30, nSST)
         call extr_val(SST, nSST, SSTmin, SSTmax)
         call readvec(SSS, 30, nSSS)
         call extr_val(SSS, nSSS, SSSmin, SSSmax)
         call readvec(Stab, 30, nStab)
         call extr_val(Stab, nStab, Stabmin, Stabmax)
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
      	read (30,'(a)') fout1
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
      	read (30,'(a)') fout2
         nsorties = 0
         if (fout1.eq.'aucun') then
@@ -463,54 +487,54 @@ c     &//fout2,status='unknown')
                         sortiestab(2) = 20
                 endif
         endif
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         read (30,'(a)') cVar
-     	read (30,'(a)') sautligne     ! B_ Amplitude du spectre DV
+     	read (30,'(a)') jump_line     ! B_ Amplitude du spectre DV
         read (30,*) B_
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) cSpectre          ! cSpectre mod. de spectre
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) Omega          ! Inverse de l'age des vagues
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne     ! cCouvEcume mod. couverture ecume
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line     ! cCouvEcume mod. couverture ecume
         read (30,*) cCouvEcume
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) cEmisEcume        ! cEmisEcume mod. emissiv. ecume  
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         read (30,*) cepsi             ! cepsi mod. permitivite
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) csigneeps         ! csigneeps Signe Im(permitivite)
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         read (30,*) cSwell
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) NSwell(1)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) NSwell(2)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) hSwell
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) sigSwell(1)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) sigSwell(2)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) KMaxSwell(1)
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) KMaxSwell(2)
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
+     	read (30,'(a)') jump_line
         read (30,*) THETAmax, DTHETAtab
         if (DTHETAtab.lt.0.010D0) then
                 write (*,*)
@@ -519,19 +543,19 @@ c     &//fout2,status='unknown')
                 write (*,*)
                 stop
         endif
-     	read (30,'(a)') sautligne     ! lambdamin
+     	read (30,'(a)') jump_line     ! lambdamin
         read (30,*) lambdamin
-     	read (30,'(a)') sautligne     ! lambdamax
+     	read (30,'(a)') jump_line     ! lambdamax
         read (30,*) lambdamax
-     	read (30,'(a)') sautligne     ! niVar
+     	read (30,'(a)') jump_line     ! niVar
         read (30,*) niVar
-        read (30,'(a)') sautligne     ! cType Type de Modele 
+        read (30,'(a)') jump_line     ! cType Type de Modele 
         read (30,*) cType
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) N1                ! Nb integration sur Sx
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) N2                ! Nb integration sur Sy
-     	read (30,'(a)') sautligne
+     	read (30,'(a)') jump_line
         read (30,*) xVar              ! Limite integration sur pentes (xVar x Variance)
         xSigma = sqrt(xVar) ! (limite = xSigma x Ecart type)
         
@@ -1043,10 +1067,10 @@ c
        enddo      
       paramKudryavtsev(1) = U10
       paramKudryavtsev(2) = ustar_Kudry 
-! load filters
-      open (unit=11,file='filterF.dat',status='old',err=61)
-      open (unit=12,file='filterFres.dat',status='old',err=62)
-      open (unit=13,file='filterPhi.dat',status='old',err=63)
+! load lookup tables for Kudryavtsev filter functions
+      open (unit=11,file=KudryFilter1,status='old',err=61)
+      open (unit=12,file=KudryFilter2,status='old',err=62)
+      open (unit=13,file=KudryFilter3,status='old',err=63)
       do ikfilt = 1, 50000
            read(11,*) temp, filtersKudry(1,ikfilt+3) ! filter F, temp is for k
            read(12,*) temp, filtersKudry(2,ikfilt+3) ! filter Fres
@@ -1207,7 +1231,7 @@ c
 c Echantillonnage en theta de 0 à THETAmax par pas de DTHETAtab
 
 c Début BOUCLE THETA_1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        do nTHETA_1 =  0, THETAmax/DTHETAtab
+        do nTHETA_1 =  0, int ( THETAmax/DTHETAtab )
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         theta_1 = nTHETA_1*DTHETAtab

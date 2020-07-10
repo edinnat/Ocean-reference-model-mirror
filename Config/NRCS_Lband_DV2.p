@@ -2,11 +2,11 @@ c-----------------------------------------------------------------------
 -                        SENSOR PARAMETERS                          -
 c-----------------------------------------------------------------------
 -- Electromagnetic Wavelength (meter) [e.g. L-band = 0.2123]
-0.2123
--- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5]
-4.4842
+0.2381
+-- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5] Value 9999 terminates the list
+6.6
 9999
--- Earth incidence angle(s) (degrees)
+-- Earth incidence angle(s) (degrees) Value 9999 terminates the list
 0.
 5.
 10.
@@ -15,19 +15,52 @@ c-----------------------------------------------------------------------
 25.
 30.
 35.
+38.
 40.
 45.
 50.
+52.
 55.
+57.
 60.
+65.
+70.
+75.
+80.
+82.
+85.
+88.
+90.
 9999 
 c-----------------------------------------------------------------------
 -                              WIND                                    -
 c-----------------------------------------------------------------------
--- Wind Speed(s) (m/s)
+-- Wind Speed(s) (m/s)  Value 9999 terminates the list
+1.
+2.
+3.
 4.
 5.
 6.
+7.
+8.
+9.
+10.
+11.
+12.
+13.
+14.
+15.
+16.
+17.
+18.
+19.
+20.
+21.
+22.
+23.
+24.
+25.
 9999
 -- Altitude for Wind Speeds provided (m)
 10.
@@ -36,10 +69,10 @@ y
 c-----------------------------------------------------------------------
 -                              OCEAN                                   -
 c-----------------------------------------------------------------------
--- Sea Surface Temperatures, SST (degree Celsius)
+-- Sea Surface Temperature(s), SST (degree Celsius) Value 9999 terminates the list
 15.
 9999
--- Sea Surface Salinity, SSS (practical salinity scale/unit)
+-- Sea Surface Salinity(ies), SSS (practical salinity scale/unit)  Value 9999 terminates the list
 36.
 9999
 -- Atmospheric Stability (T air - T water)
@@ -52,7 +85,7 @@ c-----------------------------------------------------------------------
 -- Output file that includes foam impact ('none' => no output with foam)
 aucun
 -- Output file with no foam impact ('none' => no output without foam)
-test.dat
+NRCS_Lband_DV2.dat
 c-----------------------------------------------------------------------
 -                               SEA STATE                              -
 c-----------------------------------------------------------------------
@@ -63,7 +96,7 @@ s
 -- Sea Spectrum Model (e: Elfouhaily, d:Durden & Vesecky)
 d
 -- Inverse wave age
-1.6
+0.84
 c-----------------------------------------------------------------------
 -                               FOAM                                   -
 c-----------------------------------------------------------------------
@@ -102,7 +135,7 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 -- Maximum value for incidence angle and incremental step (degrees)
 90. 
-10.
+1
 -- lambdamin
 0.
 -- lambdamax
@@ -112,8 +145,8 @@ c-----------------------------------------------------------------------
 -- Model Type (2 : 2-scale model, p : small scales only, g : large scales only)
 2
 -- Number of intergation points on the slope distribution, upwind direction
-200
+500
 -- Number of intergation points on the slope distribution, crosswind direction
-200
+500
 -- Upper limit of integration on slope distribution (in number of slope variance)
-5.
+25.

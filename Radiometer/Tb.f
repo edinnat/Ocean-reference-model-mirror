@@ -80,7 +80,7 @@ c Déclaration des variables
         character*1  csigneeps
         character*1  cSpectre
         character*1  cType
-        character*2  cCouvEcume
+        character*16 cCouvEcume
         character*1  cEmisEcume
         character*1  cCD
      	character*1  cAtmo
@@ -366,7 +366,7 @@ c               parametres de Stokes(45 et 90°)
 
        	data g/9.81D0/
        	data s/1.5D-04/
-        PI2=2.0D0*acos(-1.0D0)
+c        PI2=2.0D0*acos(-1.0D0)
         PI2=2.0D0*3.141592653589793238462643383279D0
         TPHI_1(0) = 0.0D0
         TPHI_1(1) = 90.0D0
@@ -389,9 +389,9 @@ c----------- Process Time and Date of Program Execution -----------
 
 c------------ Management of Input Output Files ----------------
 c Lookup table for Kudryavtsev filters        
-        KudryFilter1 = 'filterF.dat'
-        KudryFilter2 = 'filterFres.dat' 
-        KudryFilter3 = 'filterPhi.dat'  
+        KudryFilter1 = 'Data/Kudryavtsev_Spectrum/filterF.dat'
+        KudryFilter2 = 'Data/Kudryavtsev_Spectrum/filterFres.dat' 
+        KudryFilter3 = 'Data/Kudryavtsev_Spectrum/filterPhi.dat'  
 c Identify file of input parameters
         call getarg (1, fin1)                   ! get 1st parameter
                                                 ! passed to function
@@ -699,6 +699,21 @@ c                ModSpectre = 'Power law'
         elseif ((cCouvEcume.eq.'M5').or.(cCouvEcume.eq.'m5')) then
                 ModCouvEcume = 'Données WISE 2001'
                 fCouvEcume = 5
+        elseif ((cCouvEcume.eq.'M-Du-E')) then
+                ModCouvEcume = 'Yin et al. 2016 - M-Du-E'
+                fCouvEcume = 6
+        elseif ((cCouvEcume.eq.'M-Du-E1')) then
+                ModCouvEcume = 'Yin et al. 2016 - M-Du-E1'
+                fCouvEcume = 7
+        elseif ((cCouvEcume.eq.'M-Du-S')) then
+                ModCouvEcume = 'Yin et al. 2016 - M-Du-S'
+                fCouvEcume = 8
+        elseif ((cCouvEcume.eq.'M-Ku-E')) then
+                ModCouvEcume = 'Yin et al. 2016 - M-Ku-E'
+                fCouvEcume = 9
+        elseif ((cCouvEcume.eq.'M-Ku-S')) then
+                ModCouvEcume = 'Yin et al. 2016 - M-Ku-S'
+                fCouvEcume = 10
         else
                 write(*,*)
                 print *,'Mauvais choix pour la couverture d''ecume:'
@@ -707,6 +722,11 @@ c                ModSpectre = 'Power law'
                 print *,'     M2 : Monahan moindre carres (86, eq. 3a)'
                 print *,'     M3 : Monahan et Lu (90, actif + passif)'
                 print *,'     M4 : Monahan et Lu (90, actif)'
+                print *,'     M-Du-E : Yin et al. (2016) M-Du-E version'
+              print *,'     M-Du-E1 : Yin et al. (2016) M-Du-E1 version'
+              print *,'     M-Du-S : Yin et al. (2016) M-Du-S version'
+              print *,'     M-Ku-E : Yin et al. (2016) M-Ku-E version'
+              print *,'     M-Ku-S : Yin et al. (2016) M-Ku-S version'
                 print *,'Votre choix etait : ',cCouvEcume
                 write(*,*)
                 stop
@@ -756,6 +776,8 @@ c                ModSpectre = 'Power law'
         endif
 
 c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
+        if (nsorties.ge.1) then
+
         do i = 1, nsorties
         ufile = sortiestab(i)
         write (ufile,*) 'date = '//date//' ; heure = '//time(1:8)//' ;'
@@ -818,6 +840,7 @@ c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
         write (ufile,*) '! constante dielectrique e = Re(e) + i Im(e) $'
 
         enddo
+        endif ! if (nsorties.ge.1)
         
 c---------------------------------------------------------------------
 c------------------ PROGRAMME PRINCIPAL ------------------------------
@@ -1097,8 +1120,8 @@ c
       paramKudryavtsev(2) = ustar_Kudry 
 ! load lookup tables for Kudryavtsev filter functions
       open (unit=11,file=KudryFilter1,status='old',err=61)
-      open (unit=12,file=KudryFilter1,status='old',err=62)
-      open (unit=13,file=KudryFilter1,status='old',err=63)
+      open (unit=12,file=KudryFilter2,status='old',err=62)
+      open (unit=13,file=KudryFilter3,status='old',err=63)
       do ikfilt = 1, 50000
            read(11,*) temp, filtersKudry(1,ikfilt+3) ! filter F, temp is for k
            read(12,*) temp, filtersKudry(2,ikfilt+3) ! filter Fres
@@ -1175,6 +1198,8 @@ c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
                 call MonahanLu(U10, SST(iSST), Fr, temp1, temp2)
         elseif (fCouvEcume.eq.5) then
                 call WISE2001(U10, Fr)
+        elseif ((fCouvEcume.ge.6).and.(fCouvEcume.le.10)) then
+                call foam_fr_Yin16(U10, cCouvEcume, Fr)
         elseif (fCouvEcume.eq.0) then
                 Fr  = 0.0D0
         else
@@ -1231,7 +1256,7 @@ c       et Irh(2) en phi_1 = 0° et phi_2 = 180°
 c Echantillonnage en theta de 0 à THETAmax par pas de DTHETAtab
 
 c Début BOUCLE THETA_1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        do nTHETA_1 =  0, THETAmax/DTHETAtab
+        do nTHETA_1 =  0, int ( THETAmax/DTHETAtab )
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         theta_1 = nTHETA_1*DTHETAtab

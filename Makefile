@@ -4,18 +4,19 @@
 Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
 				 # e.g. 'g77', 'gfortran'
 
-# Pas d ecriture des commandes avant de les executer -------------------
+# Do not write command lines to screen before execution
+# 	Comment out to debug
 .SILENT : 
 
 #-----------------------------------------------------------------------
-# Check existence of environment variable 'FORTRAN'  -------------------
+# Check existence of environment variable 'OceanMod'  -------------------
 # that contains root path to code					 -------------------
 
-ifndef FORTRAN
+ifndef OceanMod
 .PHONY : ERROR
 ERROR :
 	
-	echo "	ERROR : environment variable FORTRAN is not defined"
+	echo "	ERROR : environment variable OceanMod is not defined"
 	echo "  set it as the root path to FORTRAN code."
 	exit
 
@@ -25,8 +26,8 @@ endif
 # Definition of sub-folder containing various componenet of model
 #
 
-FN = $(FORTRAN) # rep contenant toutes les sources en Fortran
-                # la variable d'environnement FORTRAN doit etre affectee
+FN = $(OceanMod) # Directory containing all Fortran source code
+                # Environmnet variable OceanMod needs to be assigned
 
 TR = $(join $(FN), /Atmosphere/Radiative_Transfer/)
 VT = $(join $(FN), /Atmosphere/Wind/)
@@ -54,7 +55,7 @@ FilesVT = wind.f funcUstar_y.f funcUstar_c.f
 FilesEP = epsilon_KS.f epsilon_El.f 
 
 #   Foam emissivity and foam fraction
-FilesEC = foam.f esf.f WISE2001.f MonahanLu.f 
+FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f
 
 # 	Sea Spectrum
 FilesSP = c.f Su.f Sc.f P.f Sigma.f spectrum_DV_Base.f spectrum_DV.f spectrum_Lemaire.f 
@@ -119,20 +120,15 @@ SourcesRA = $(SourcesRO) $(addprefix $(RA),$(FilesRA))
 # Create objects *.o from source files *.f
 ObjectsTbTot = $(SourcesRO1:.f=.o)
 ObjectsTb    = $(SourcesRO2:.f=.o)
-ObjectsTbWang2008 = $(SourcesRO3:.f=.o)
-ObjectsCoefAbsorption = $(SourcesCoefAbsorption:.f=.o)
-ObjectsFaireProfils = $(SourcesFaireProfils:.f=.o)
 ObjectsNRCS   = $(SourcesRA:.f=.o)
-ObjectsWeightingFunc = $(SourcesWF:.f=.o)
-ObjectsGFunc = $(SourcesGF:.f=.o)
 
 #-----------------------------------------------------------------------
 
 # Set up cleaning function : remove all object files
 
 clean :
-	echo Removing `find ${FORTRAN}/* | grep '\.o'`
-	rm -f `find ${FORTRAN}/* | grep '\.o'`
+	echo Removing `find ${OceanMod}/* | grep '\.o'`
+	rm -f `find ${OceanMod}/* | grep '\.o'`
 
 #-----------------------------------------------------------------------
 

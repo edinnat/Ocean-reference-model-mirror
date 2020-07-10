@@ -1,60 +1,60 @@
 c----------TEMPLATE TO BE READ  AND MODIFIEDBY Tb_rough_vs_freq.m ------
--                        PARAMETRES SATELLITE                          -
+-                        SENSOR PARAMETERS                          -
 c-----------------------------------------------------------------------
--- Longueur d onde du satellite (m) (0.015503876, 0.0081081081)
+-- Electromagnetic Wavelength (meter) [e.g. L-band = 0.2123]
 XXlambda
--- Nombre d onde de coupure (rad/m)
+-- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5]
 XXKd
 9999
--- Angles d incidence du satellite (deg)
+-- Earth incidence angle(s) (degrees)
 XXtht
 9999 
 c-----------------------------------------------------------------------
--                              VENT                                    -
+-                              WIND                                    -
 c-----------------------------------------------------------------------
--- force du Vent (m/s)
+-- Wind Speed(s) (m/s)
 XXU10
 9999
--- Altitude du vent (m)
+-- Altitude for Wind Speeds provided (m)
 XXUalt
--- Modele de Coefficient de trainee(y : Cardone (69), c : Charnock (55), d:Donelan(93))
+-- Model for drag coefficient(y : Cardone (69), c : Charnock (55), d:Donelan(93))
 y
 c-----------------------------------------------------------------------
 -                              OCEAN                                   -
 c-----------------------------------------------------------------------
--- Temperatures de surface de l ocean (deg C)
+-- Sea Surface Temperatures, SST (degree Celsius)
 XXSST
 9999
--- Salinité de surface (Psu)
+-- Sea Surface Salinity, SSS (practical salinity scale/unit)
 XXSSS
 9999
--- Stabilité (Tair - Teau)
+-- Atmospheric Stability (T air - T water)
 XXstab
 9999
 c-----------------------------------------------------------------------
--                              SORTIES                                 -
+-                              Output Files                            -
 c-----------------------------------------------------------------------
--- Fichier de sortie avec écume (aucun => pas de sortie avec écume)
+-- Output file that includes foam impact ('none' => no output with foam)
 XXFout1
--- Fichier de sortie sans écume (aucun => pas de sortie sans écume)
+-- Output file with no foam impact ('none' => no output without foam)
 XXFout2
 c-----------------------------------------------------------------------
--                           ETAT DE MER                                -
+-                               SEA STATE                              -
 c-----------------------------------------------------------------------
--- Calcul des Variances (c : Cox & Munk 55, s: Spectre)
+-- Slope variance computation (c : Cox & Munk 55, s: sea spectrum)
 s
--- Amplitude du spectre de Durden & Vesecky (0.008 Yueh et 0.004 D & V)
+-- Amplitude  coefficient for sea spectrum by Durden & Vesecky 1985 (e.g. 0.008 Yueh ; 0.004 original DV1985)
 XXSpecAmp
--- Modele de Spectre (e: Elfouhaily, d:Durden & Vesecky)
+-- Sea Spectrum Model (e: Elfouhaily, d:Durden & Vesecky)
 d
--- Inverse de l''age des vagues 
+-- Inverse wave age
 0.84
 c-----------------------------------------------------------------------
--                              ECUME                                   -
+-                               FOAM                                   -
 c-----------------------------------------------------------------------
--- Couverture d ecume (Monahan (86) : M1, M2 (moindre carres), Monahan & Lu (90): M3 (actif + passif),M4 (actif), WISE2001 : M5)
+-- Model for Foam fraction (Monahan (86) : M1, M2 (least square), Monahan & Lu (90): M3 (active + passive),M4 (active), WISE2001 : M5)
 M1
--- Modele d emissivite de l ecume (S : Stogryn 72)
+-- Model for Foam emissivity (S : Stogryn 72)
 s
 c-----------------------------------------------------------------------
 -                           PERMITTIVITE                               -
@@ -83,9 +83,9 @@ N
 -- pic densite spectrale houle (normale du vent) (m-1)
 0.0314
 c-----------------------------------------------------------------------
--                        TABULATION DIFFUSION                          -
+-            PARAMETERS FOR SCATTERING LOOKUP TABLE                    -
 c-----------------------------------------------------------------------
--- Valeur de theta max pour la tabulation de la diffusion (deg), pas
+-- Maximum value for incidence angle and incremental step (degrees)
 90. 
 5.
 -- lambdamin
@@ -94,11 +94,11 @@ c-----------------------------------------------------------------------
 0.
 -- iVal
 0.
--- Type de modele (2 : 2 echelles, p : petite echelles, g : grandes echelles)
+-- Model Type (2 : 2-scale model, p : small scales only, g : large scales only)
 2
--- Nombre d integrations sur pente upwind
+-- Number of intergation points on the slope distribution, upwind direction
 200
--- Nombre d integrations sur pente xwind
+-- Number of intergation points on the slope distribution, crosswind direction
 200
--- Limite sup d integration sur pente (X x variance)
+-- Upper limit of integration on slope distribution (in number of slope variance)
 5.
