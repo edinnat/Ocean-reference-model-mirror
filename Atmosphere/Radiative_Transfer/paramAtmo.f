@@ -131,16 +131,16 @@ c ------------   Lecture des parametres des raies -------------
         integer j
 
 		call getenv('FORTRAN', Fort)
-        open (unit=2,file=Fort(1:lnblnk(Fort))//'/Atmosphere/TransfertRa
-     &diatif/dataProg/WATER.DAT')
+        open (unit=2,file=Fort(1:lnblnk(Fort))//'/Data/Atmosphere/WATER.
+     &DAT')
         read(2,*) ! saute les 2 ligne de commentaires
         read(2,*)
         do i = 1, 35
                 read (2,*) F0_H2O (i),(A_H2O(j,i),j=1,6)
         enddo
         close (2)
-        open (unit=2,file=Fort(1:lnblnk(Fort))//'/Atmosphere/TransfertRa
-     &diatif/dataProg/OXYGEN.DAT')
+        open (unit=2,file=Fort(1:lnblnk(Fort))//'/Data/Atmosphere/OXYGEN
+     &.DAT')
         read(2,*) ! saute les 2 ligne de commentaires
         read(2,*)
         do i = 1,44

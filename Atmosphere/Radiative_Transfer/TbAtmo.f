@@ -35,6 +35,7 @@ c Tabulation de la température de brillance de l'atmosphère (TbA) en fonction de
         integer i
         integer j
         integer nParam
+        integer iTheta
 
         character*80 opt ! si opt = 'f' profil de temperature a partir un fichier
         character*80 fichier ! fichier contenant profil de temperature
@@ -63,18 +64,19 @@ c      de l'oxygene et de la vapeur d'eau et de l'humidite absolue.
      &         opt, fichier, grad, ncouche, P, T, KO2, KH2O, q)
 
 c >
-        do theta = 0, 90
+        do iTheta = 0, 90
+        Theta = iTheta*1.D0
 c construction de dpath
 c     dpath = elt d'atmosphere traversee qd on fait varier l'altitude de
 c             'altmax/ncouche' et que l'on regarde dans la direction 
-c             theta. dpath prend en compte la courbure de la terre de 
-c             rayon Rt. Il tend vers sec(theta) = 1/cos(theta) qd theta
+c             Theta. dpath prend en compte la courbure de la terre de 
+c             rayon Rt. Il tend vers sec(Theta) = 1/cos(Theta) qd Theta
 c             tend vers 0.
 
 c >>
         do j = 1, ncouche
-               dpath(j) = path(Rt, theta,altmax/ncouche*(j+1))
-     &                   - path(Rt, theta, altmax/ncouche*j)
+               dpath(j) = path(Rt, Theta,altmax/ncouche*(j+1))
+     &                   - path(Rt, Theta, altmax/ncouche*j)
         enddo ! j
 c <<
 
@@ -123,10 +125,10 @@ c >>
         enddo ! j
 c <<
 
-        TbAd(theta) = Tbdown
-        TbAu(theta) = Tbup
-        tau(theta) = tauP(1,ncouche+1,dpath,KH2O,KO2)
-        enddo ! theta
+        TbAd(iTheta) = Tbdown
+        TbAu(iTheta) = Tbup
+        tau(iTheta) = tauP(1,ncouche+1,dpath,KH2O,KO2)
+        enddo ! Theta
 	dalt = altmax/ncouche
 c	do j = 1, ncouche+1
 c		print*, dalt*(j-1), T(j), P(j), q(j)
