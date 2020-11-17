@@ -130,7 +130,7 @@ c ------------   Lecture des parametres des raies -------------
         integer i
         integer j
 
-		call getenv('FORTRAN', Fort)
+		call getenv('OceanMod', Fort)
         open (unit=2,file=Fort(1:lnblnk(Fort))//'/Data/Atmosphere/WATER.
      &DAT')
         read(2,*) ! saute les 2 ligne de commentaires
