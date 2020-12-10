@@ -28,5 +28,6 @@
         S(J+1)=S(J)
         H(J+1)=0.25D0*H(J)
         enddo
-        PAUSE 'Too many steps.'
+        write (*,*) 'Too many steps.'
+        read (*,*)
         END

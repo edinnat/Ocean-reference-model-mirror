@@ -4,7 +4,7 @@ c-----------------------------------------------------------------------
 -- Electromagnetic Wavelength (meter) [e.g. L-band = 0.2123]
 0.2123
 -- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5]
-4.4842
+7.4842
 9999
 -- Earth incidence angle(s) (degrees)
 0.
@@ -50,9 +50,9 @@ c-----------------------------------------------------------------------
 -                              Output Files                            -
 c-----------------------------------------------------------------------
 -- Output file that includes foam impact ('none' => no output with foam)
-aucun
+test_foam.dat
 -- Output file with no foam impact ('none' => no output without foam)
-test.dat
+test_nofoam.dat
 c-----------------------------------------------------------------------
 -                               SEA STATE                              -
 c-----------------------------------------------------------------------
@@ -70,32 +70,32 @@ c-----------------------------------------------------------------------
 -- Model for Foam fraction (Monahan (86) : M1, M2 (least square), Monahan & Lu (90): M3 (active + passive),M4 (active), WISE2001 : M5)
 M1
 -- Model for Foam emissivity (S : Stogryn 72)
-s
+M-Du-E1
 c-----------------------------------------------------------------------
--                           PERMITTIVITE                               -
+-                           PERMITTIVITY                               -
 c-----------------------------------------------------------------------
--- Modele de constante dielectrique (e: ellison, k:klein & swift)
-k
--- Partie imaginaire de constante dielectrique > 0 (O/N)
+-- Model for the sea water dielectric constant (e: Ellison et al. 1998, k: Klein & Swift 1977, m: Meissner et al. (2004, 2012, 2014))
+m
+-- Imaginary part of diecltric constant is (O: positive; N: negative)
 o
 c-----------------------------------------------------------------------
--                             HOULE                                    -
+-                             SWELL                                    -
 c-----------------------------------------------------------------------
--- Presence de houle (O/N)
+-- Swell is prrsent (O: yes; N: no)
 N
--- Nombre de point de tabulation de la houle (direction du vent)
+-- Number of points to compute integral of swell along the wind direction
 100
--- Nombre de point de tabulation de la houle (normale au vent)
+-- Number of points to compute integral of swell across the wind direction
 100
--- RMS des hauteurs de la houle (m)
+-- RMS for swell height (m)
 1.
--- Largeur à mi puissance de la houle (direction du vent) (m-1)
+-- Half power width of swell Gaussian PDF along wind (1/m)
 0.0025
--- Largeur à mi puissance de la houle (normale du vent) (m-1)
+-- Half power width of swell Gaussian PDF across wind (1/m)
 0.0025
--- pic densite spectrale houle (direction du vent) (m-1)
+-- Peak PDF swell along wind (1/m)
 0.
--- pic densite spectrale houle (normale du vent) (m-1)
+-- Peak PDF swell across wind (1/m)
 0.0314
 c-----------------------------------------------------------------------
 -            PARAMETERS FOR SCATTERING LOOKUP TABLE                    -

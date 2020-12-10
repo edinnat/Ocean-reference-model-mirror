@@ -248,6 +248,7 @@ c Déclaration des variables
         
        	double complex epsi_KS
        	double complex epsi_El
+       	double complex epsi_MW
        	double complex epsi
        	double complex epsi_
         double complex C1
@@ -820,6 +821,7 @@ c epsi : constante dielectrique complexe relative à epsilon 0
 c        (ie permitivité du vide)
 c       epsi_KS pour Klein & Swift 
 c       epsi_El pour Ellison
+c       epsi_MW pour Meissner et al. 
 c SST  : Temperature de surface de l'ocean en °K
 c SSS  : Salinité de surface de l'ocean en ppm
 c freq : Frequence electromagnetique du radiometre en Hz
@@ -827,12 +829,16 @@ c freq : Frequence electromagnetique du radiometre en Hz
         write (50,*) 'Calcul de constante dielectrique'
         call epsilon_KS (SST(iSST), SSS(iSSS), epsi_KS, freq)
         call epsilon_El (SST(iSST), SSS(iSSS), epsi_El, freq)
+        call epsilon_MW (SST(iSST), SSS(iSSS), epsi_MW, freq)
         if ((cepsi.eq.'K').or.(cepsi.eq.'k')) then
                 epsi = epsi_KS
                 Modepsi = 'Klein & Swift (77)'
         elseif ((cepsi.eq.'e').or.(cepsi.eq.'E')) then
                 epsi = epsi_El
                 Modepsi = 'Ellison (98)'
+        if ((cepsi.eq.'M').or.(cepsi.eq.'m')) then
+                epsi = epsi_MW
+                Modepsi = 'Meissner et al. (2004,2012,2014)'
         else
                 write(*,*)
                 print *,'Mauvais choix pour constante dielectrique:'
@@ -861,6 +867,7 @@ c freq : Frequence electromagnetique du radiometre en Hz
         write (50,*) 'Calcul de constante dielectrique terminée'
         write (50,*) '  Klein & Swift = ', epsi_KS
         write (50,*) '  Ellison       = ', epsi_El
+        write (50,*) '  Meissner et al. = ', epsi_MW
         write (50,*) '      =>       ',epsi
 
 c Tabulation des Tb Atmosphérique en fonction de l'angle d'incidence 

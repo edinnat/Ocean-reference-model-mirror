@@ -81,7 +81,7 @@ c Déclaration des variables
         character*1  cSpectre
         character*1  cType
         character*16 cCouvEcume
-        character*1  cEmisEcume
+        character*16  cEmisEcume
         character*1  cCD
      	character*1  cAtmo
      	character*1  cSwell
@@ -286,6 +286,7 @@ c Déclaration des variables
         
        	double complex epsi_KS
        	double complex epsi_El
+       	double complex epsi_MW
        	double complex epsi
        	double complex epsi_
         double complex C1
@@ -447,6 +448,7 @@ c------------------ READ INPUT PARAMETERS -----------------------------
      	read (30,*) lambda
        	freq = 3.D08/lambda
        	nu = 3.D-01/lambda
+       	k0 = 2.D0*3.141592653D0/lambda 
         call readvec(kdtab, 30, nkd)
         call extr_val(kdtab, nkd, kdmin, kdmax)
         call readvec(theta, 30, ntheta)
@@ -477,12 +479,13 @@ c------------------ READ INPUT PARAMETERS -----------------------------
      	read (30,'(a)') jump_line
      	read (30,'(a)') fout2
         nsorties = 0
-        if (fout1.eq.'aucun') then
-                print *, '  Pas de sortie fichier avec écume'
-                if (fout2.eq.'aucun') then
-                        print *, '  Pas de sortie fichier sans écume'
-                        print *, '!!!!!!! ATTENTION  !!!!!!'
-                        print *, 'Pas de sortie fichier prévue'
+        if ((fout1.eq.'aucun').or.(fout1.eq.'none')) then ! test on 'aucun' kept for legacy
+                print *, ' * No output file with foam selected.'
+                if ((fout2.eq.'aucun').or.(fout2.eq.'none')) then
+                      print *, '  No output file without foam selected.'
+                      print *, '/!\ WARNING /!\'
+                      print *, 'No output file selected. Results only'//
+     &                ' reported on screen'
                 else
                    open (unit=20,file=pathout(1:lnblnk(pathout))//fout2
      &,status='unknown')
@@ -493,14 +496,18 @@ c------------------ READ INPUT PARAMETERS -----------------------------
      &//fout2,status='unknown')
                         nsorties = 1
                         sortiestab(1) = 20
+                   print *, ' * Results without foam are saved in file :
+     & '//pathout(1:lnblnk(pathout))//fout2
                 endif
         else
                 open (unit=10,file=pathout(1:lnblnk(pathout))//fout1,sta
      &tus='unknown')
                 open (unit=15,file=pathout(1:lnblnk(pathout))//"Atm_"//
      &fout1,status='unknown')
-                if (fout2.eq.'aucun') then
-                        print *, '  Pas de sortie fichier sans écume'
+                if ((fout2.eq.'aucun').or.(fout2.eq.'none')) then
+                   print *, ' * Results with foam are saved in file : '
+     & //pathout(1:lnblnk(pathout))//fout1
+                   print *, ' * No output file without foam selected.'
                         nsorties = 1
                         sortiestab(1) = 10
                 else
@@ -511,8 +518,13 @@ c------------------ READ INPUT PARAMETERS -----------------------------
                         nsorties = 2
                         sortiestab(1) = 10
                         sortiestab(2) = 20
+                   print *, ' * Results with foam are saved in file : '
+     & //pathout(1:lnblnk(pathout))//fout1
+                 print *, ' * Results without foam are saved in file : '
+     & //pathout(1:lnblnk(pathout))//fout2
                 endif
         endif
+
      	read (30,'(a)') jump_line
      	read (30,'(a)') jump_line
      	read (30,'(a)') jump_line
@@ -564,8 +576,8 @@ c------------------ READ INPUT PARAMETERS -----------------------------
         read (30,*) THETAmax, DTHETAtab
         if (DTHETAtab.lt.1.0D0) then
                 write (*,*)
-                print *, '!!!!!! ERREUR  !!!!!!!!!!!'
-                print *, 'DTHETAtab doit etre au moins égal à 1'
+                print *, '!!!!!! ERROR  !!!!!!!!!!!'
+                print *, 'DTHETAtab must be larger or equal to 1'
                 write (*,*)
                 stop
         endif
@@ -590,8 +602,8 @@ c----------- VERIFICATION DES PARAMETRES D'ENTRÉE ----------------------
 
         if (int(THETAmax/DTHETAtab).ne.(THETAmax/DTHETAtab)) then
                 write (*,*)
-                print *, '!!!!!! ERREUR  !!!!!!!!!!!'
-                print *, 'THETAmax n''est pas multiple de DTHETAtab'
+                print *, '!!!!!! ERROR  !!!!!!!!!!!'
+                print *, 'THETAmax is not a multiple of DTHETAtab'
                 write (*,*) 'THETAmax = ', THETAmax
                 write (*,*) 'DTHETAtab = ', DTHETAtab
                 write (*,*)
@@ -599,18 +611,18 @@ c----------- VERIFICATION DES PARAMETRES D'ENTRÉE ----------------------
         endif
         if ((theta_max.gt.THETAmax).and.(nTheta.ne.1)) then
                 write (*,*)
-                print *, '!!!!!!!! ERREUR  !!!!!!!!!!!!!!!!'
-                print *, 'La valeur de theta est limitée à ', THETAmax
-     &          ,' par THETAmax (valeur maximale tabulée)'
+                print *, '!!!!!!!! ERROR  !!!!!!!!!!!!!!!!'
+                print *, 'theta must be less or equal to ', THETAmax
+     &          ,' which is THETAmax (max value for lookup table)'
                 write (*,*)
                 stop
         endif
         if ((cSpectre.eq.'D').or.(cSpectre.eq.'d')) then
                 cspec = 1
-                ModSpectre = 'Durden & Vesecky (85)'
+                ModSpectre = 'Durden and Vesecky (1985)'
         elseif ((cSpectre.eq.'E').or.(cSpectre.eq.'e')) then
                 cspec = 2
-                ModSpectre = 'Elfouhaily et al. (97)'
+                ModSpectre = 'Elfouhaily et al. (1997)'
 c        elseif ((cSpectre.eq.'P').or.(cSpectre.eq.'p')) then
 c                cspec = 3
 c                ModSpectre = 'Power law'
@@ -622,34 +634,38 @@ c                ModSpectre = 'Power law'
                 ModSpectre = 'Kudryavtsev et al. (2003)'
         else
                 write (*,*)
-                print *, '!!!!!!!! ERREUR  !!!!!!!!!!!!!!!!'
-                print *, 'Le choix du spectre est ', cSpectre
-                print*,'Choix possibles : E pour Elfouhaily et al. (97)'
-                print *, '                : D pour Durden & Vesecky(85)'
-                print *, '                : L pour Lemaire et al. (99)'
-                print *, '                : K Kudryavtsev et al. (2003)'
+                print *, '!!!!!!!! ERROR  !!!!!!!!!!!!!!!!'
+                print *, 'Current choice for sea spectrum model is:', 
+     &                  cSpectre
+                print*,'Possible choices are:'
+                print*,'   - E for Elfouhaily et al. (1997)'
+                print*,'   - D for Durden and Vesecky (1985)'
+                print*,'   - L for Lemaire et al. (1999)'
+                print*,'   - K for Kudryavtsev et al. (2003)'
                 write (*,*)
                 stop
         endif
         if (cType.eq.'2') then
-                TypeMod = '2 Echelles'
+                TypeMod = 'Two-scale'
                 fGeo  = 1
                 fDiff = 1 
         elseif ((cType.eq.'p').or.(cType.eq.'P')) then
-                TypeMod = 'Petites Echelles (Diffusion)'
+                TypeMod = 'Small scales (Scattering)'
                 fGeo  = 0
                 fDiff = 1
         elseif ((cType.eq.'g').or.(cType.eq.'G')) then
-                TypeMod = 'Grandes Echelles (Optique Geometrique)'
+                TypeMod = 'Large scales (Geometric Optics)'
                 fGeo  = 1
                 fDiff = 0
         else
                 write (*,*)
-                print *, '!!!!!!!! ERREUR  !!!!!!!!!!!!!!!!'
-                print *, 'Le choix du type de modele est ', cType
-                print *, 'Choix possibles : 2 pour 2 echelles'
-                print *, '                : p pour petites echelles'
-                print *, '                : g pour grandes echelles'
+                print *, '!!!!!!!! ERROR  !!!!!!!!!!!!!!!!'
+                print *, 'Current choice for the type of model is: '
+     &                          , cType
+                print *, 'Possible Choices are:'
+                print*,  '  - 2 for  two-scale model'
+                print *, '  - p for small scales scattering only'
+                print *, '  - g for large scales only'
                 write (*,*)
                 stop
         endif
@@ -657,12 +673,15 @@ c                ModSpectre = 'Power law'
                 Modepsi = 'Klein & Swift (77)'
         elseif ((cepsi.eq.'e').or.(cepsi.eq.'E')) then
                 Modepsi = 'Ellison (98)'
+        elseif ((cepsi.eq.'m').or.(cepsi.eq.'M')) then
+                Modepsi = 'Meissner et al. (2004,2012,2014)'
         else
                 write(*,*)
-                print *,'Mauvais choix pour constante dielectrique:'
+                print *,'Invalid choice for dielectric constant model:'
                 print *,'     K : Klein & Swift (77)'
                 print *,'     E : Ellison (98)'
-                print *,'Votre choix etait : ',cepsi
+                print *,'     M : Meissner et al. (2004,2012,2014)'
+                print *,'Current choice is: ',cepsi
                 write(*,*)
                 stop
         endif
@@ -674,30 +693,31 @@ c                ModSpectre = 'Power law'
                 fVar = 1
         else
                 write(*,*)
-                print *,'Mauvais choix pour le calcul des variances:'
-                print *,'     C : Cox & Munk (55)'
-                print *,'     S : calcul avec le spectre'
-                print *,'Votre choix etait : ',cVar
+                print *,'Invalid choice for the slope variance '//
+     &                  'computation. Possible choices are:'
+                print *,'   - C : Cox and Munk (1955)'
+                print *,'   - S : Compute from sea spectrum model'
+                print *,'Current choise is: ',cVar
                 write(*,*)
                 stop
         endif
         if ((cCouvEcume.eq.'A').or.(cCouvEcume.eq.'a')) then
-                ModCouvEcume = 'Pas d''ecume'
+                ModCouvEcume = 'No foam.'
                 fCouvEcume = 0
         elseif ((cCouvEcume.eq.'M1').or.(cCouvEcume.eq.'m1')) then
-                ModCouvEcume = 'Monahan (86, eq.5)'
+                ModCouvEcume = 'Monahan (1986, eq.5)'
                 fCouvEcume = 1
         elseif ((cCouvEcume.eq.'M2').or.(cCouvEcume.eq.'m2')) then
-                ModCouvEcume = 'Monahan moindres carres (86, eq. 3a)'
+                ModCouvEcume = 'Monahan least square (1986, eq. 3a)'
                 fCouvEcume = 2
         elseif ((cCouvEcume.eq.'M3').or.(cCouvEcume.eq.'m3')) then
-                ModCouvEcume = 'Monahan et Lu (90, actif + passif)'
+                ModCouvEcume = 'Monahan and Lu (90, active + passive)'
                 fCouvEcume = 3
         elseif ((cCouvEcume.eq.'M4').or.(cCouvEcume.eq.'m4')) then
-                ModCouvEcume = 'Monahan et Lu (90, actif)'
+                ModCouvEcume = 'Monahan and Lu (90, active)'
                 fCouvEcume = 4
         elseif ((cCouvEcume.eq.'M5').or.(cCouvEcume.eq.'m5')) then
-                ModCouvEcume = 'Données WISE 2001'
+                ModCouvEcume = 'Data from WISE 2001 campaign'
                 fCouvEcume = 5
         elseif ((cCouvEcume.eq.'M-Du-E')) then
                 ModCouvEcume = 'Yin et al. 2016 - M-Du-E'
@@ -716,29 +736,51 @@ c                ModSpectre = 'Power law'
                 fCouvEcume = 10
         else
                 write(*,*)
-                print *,'Mauvais choix pour la couverture d''ecume:'
-                print *,'     A  : pas d''ecume'
-                print *,'     M1 : Monahan (86, eq.5)'
-                print *,'     M2 : Monahan moindre carres (86, eq. 3a)'
-                print *,'     M3 : Monahan et Lu (90, actif + passif)'
-                print *,'     M4 : Monahan et Lu (90, actif)'
-                print *,'     M-Du-E : Yin et al. (2016) M-Du-E version'
-              print *,'     M-Du-E1 : Yin et al. (2016) M-Du-E1 version'
-              print *,'     M-Du-S : Yin et al. (2016) M-Du-S version'
-              print *,'     M-Ku-E : Yin et al. (2016) M-Ku-E version'
-              print *,'     M-Ku-S : Yin et al. (2016) M-Ku-S version'
-                print *,'Votre choix etait : ',cCouvEcume
+                print *,'Invalid choice for foam fraction model.'//
+     &                  ' Possible choices are:'
+                print *,'  A  : No foam'
+                print *,'  M1 : Monahan (1986, eq.5)'
+                print *,'  M2 : Monahan least square (1986, eq. 3a)'
+                print *,'  M3 : Monahan and Lu (1990, active + passive)'
+                print *,'  M4 : Monahan and Lu (1990, active)'
+                print *,'  M-Du-E : Yin et al. (2016) M-Du-E version'
+              print *,'    M-Du-E1 : Yin et al. (2016) M-Du-E1 version'
+              print *,'    M-Du-S : Yin et al. (2016) M-Du-S version'
+              print *,'    M-Ku-E : Yin et al. (2016) M-Ku-E version'
+              print *,'    M-Ku-S : Yin et al. (2016) M-Ku-S version'
+                print *,'Current choice is: ',cCouvEcume
                 write(*,*)
                 stop
         endif
         if ((cEmisEcume.eq.'S').or.(cEmisEcume.eq.'s')) then
                 ModEmisEcume = 'Stogryn (72)'
                 fEmisEcume = 1
+        elseif ((cEmisEcume.eq.'M-Du-E')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Du-E'
+                fEmisEcume = 2
+        elseif ((cEmisEcume.eq.'M-Du-E1')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Du-E1'
+                fEmisEcume = 3
+        elseif ((cEmisEcume.eq.'M-Du-S')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Du-S'
+                fEmisEcume = 4
+        elseif ((cEmisEcume.eq.'M-Ku-E')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Ku-E'
+                fEmisEcume = 5
+        elseif ((cEmisEcume.eq.'M-Ku-S')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Ku-S'
+                fEmisEcume = 6
         else
                 write(*,*)
-                print *,'Mauvais choix pour l''emissivite de l''ecume:'
-                print *,'     S : Stogryn(72)'
-                print *,'Votre choix etait : ',cEmisEcume
+                print *,'Invalid choice for foam emissivity model.'//
+     &                  ' Possible choices are:'
+                print *,'     S : Stogryn (1972)'
+                print *,'     M-Du-E : Yin et al. (2016) M-Du-E version'
+              print *,'     M-Du-E1 : Yin et al. (2016) M-Du-E1 version'
+                print *,'     M-Du-S : Yin et al. (2016) M-Du-S version'
+                print *,'     M-Ku-E : Yin et al. (2016) M-Ku-E version'
+                print *,'     M-Ku-S : Yin et al. (2016) M-Ku-S version'
+                print *,'Current choice is: ',cEmisEcume
                 write(*,*)
                 stop
        endif
@@ -753,11 +795,12 @@ c                ModSpectre = 'Power law'
                 fCD = 3
         else
                 write(*,*)
-                print *,'Mauvais choix pour le coefficient de trainee:'
-                print *,'     y : Cardone (69)'
-                print *,'     c : Charnock (55)' 
-                print *,'     d : Donelan (93)' 
-                print *,'Votre choix etait : ',cCD
+                print *,'Invalid choice for the drag coefficient'//
+     &                  ' model. Possible choices are:'
+                print *,'     y : Cardone (1969)'
+                print *,'     c : Charnock (1955)' 
+                print *,'     d : Donelan et al. (1993)' 
+                print *,'Current choice is: ',cCD
                 write(*,*)
                 stop
         endif
@@ -767,10 +810,11 @@ c                ModSpectre = 'Power law'
                 fSwell = 0
         else
                 write(*,*)
-                print *,'Mauvais choix pour la presence de houle:'
-                print *,'     O : oui'
-                print *,'     N : non' 
-                print *,'Votre choix etait : ',cSwell
+                print *,'Invalid choice for the inclusion of swell'//
+     &                  'Possible choice are:'
+                print *,'     O : swell is included'
+                print *,'     N : No swell included' 
+                print *,'Current choice is: ',cSwell
                 write(*,*)
                 stop
         endif
@@ -780,11 +824,10 @@ c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
 
         do i = 1, nsorties
         ufile = sortiestab(i)
-        write (ufile,*) 'date = '//date//' ; heure = '//time(1:8)//' ;'
-       	k0 = 2.D0*3.141592653D0/lambda 
+        write (ufile,*) 'Date = '//date//' ; Time = '//time(1:8)//' ;'
        	write (ufile,*) 'Lambda   = ',lambda,' ;'
        	if (kdmin.eq.0.)  then
-                write (*,*) ' !!!! Erreur !!!!'
+                write (*,*) ' !!!! Error !!!!'
                 write (*,*) 'kdmin = 0 !!!!!'
                 stop
         endif
@@ -793,51 +836,52 @@ c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
      &               ' ; Nlambda_d = ', nkd,' ;'
 
 
-        write (ufile,*) 'Vent min.        = ', Windmin,
-     &               ' ; Vent max.        = ', Windmax, 
-     &               ' ; Nvent         = ', nWind, ' ;'
-        write (ufile,*) 'Incidence min.   = ', thetamin, 
-     &               ' ; Incidence max.   =' , theta_max,
+        write (ufile,*) 'Wind min.        = ', Windmin,
+     &               ' ; Wind max.        = ', Windmax, 
+     &               ' ; N_wind         = ', nWind, ' ;'
+        write (ufile,*) 'Incidence angle min.   = ', thetamin, 
+     &               ' ; Incidence angle max.   =' , theta_max,
      &               ' ; Nincidences   = ', ntheta, ' ;'
         write (ufile,*) 'Temperature min. = ', SSTmin, 
      &               ' ; Temperature max. =' ,SSTmax, 
      &               ' ; Ntemperatures = ', nSST, ' ;'
-        write (ufile,*) 'Stabilite min.   = ', Stabmin,
-     &               ' ; Stabilite max.   =' ,Stabmax,
-     &               ' ; Nstabilites   = ', nStab, ' ;'
-        write (ufile,*) 'Salinite min.    = ', SSSmin,
-     &               ' ; Salinite max.    =' ,SSSmax,
-     &               ' ; Nsalinites    = ', nSSS, ' ;'
-        write (ufile,*) 'Modele constante dielectrique = ', Modepsi,' ;'
-        write (ufile,*) 'Calcul de la Variance des pentes = ',
+        write (ufile,*) 'Stability min.   = ', Stabmin,
+     &               ' ; Stability max.   =' ,Stabmax,
+     &               ' ; Nstabilities   = ', nStab, ' ;'
+        write (ufile,*) 'Salinity min.    = ', SSSmin,
+     &               ' ; Salinity max.    =' ,SSSmax,
+     &               ' ; Nsalinities    = ', nSSS, ' ;'
+        write (ufile,*) 'Model for dielectric constant of sea water = '
+     &                  , Modepsi,' ;'
+        write (ufile,*) 'Computation of slope variances = ',
      &               ModVarPente,' ;'
-        write (ufile,*) 'Type de modele                = ', TypeMod,' ;'
-        write (ufile,*) 'Modele de spectre des vagues  = ',
+        write (ufile,*) 'Type of model  = ', TypeMod,' ;'
+        write (ufile,*) 'Model for sea spectrum  = ',
      &                 ModSpectre,' ;'
-        write (ufile,*) 'Nombre de points sur Gaussienne sur axe x = ',
-     &                N1, ' ;' 
-        write (ufile,*) 'Nombre de points sur Gaussienne sur axe y = ',
-     &                N2, ' ;' 
+        write (ufile,*) 'Number of integraton points on gaussian pdf'//
+     &                  ' along x-axis = ', N1, ' ;' 
+        write (ufile,*) 'Number of integraton points on gaussian pdf'//
+     &                  ' along y-axis = ', N2, ' ;' 
         if (ufile.eq.10) then
-                write (ufile,*) 'Modele de couverture d''ecume = ', 
+                write (ufile,*) 'Model for foam fraction = ', 
      &                  ModCouvEcume, ' ;'
-                write (ufile,*) 'Modele d''emissivite de l''ecume = ', 
+                write (ufile,*) 'Model for foam emissivity = ', 
      &                  ModEmisEcume, ' ;'
         else if (ufile.eq.20) then
-                write (ufile,*) 'Modele de couverture d''ecume = ',
-     &                 'Pas d''ecume;'
-                write (ufile,*) 'Modele d''emissivite de l''ecume = ',
-     &                 'Pas d''ecume;'
+                write (ufile,*) 'Model for foam fraction = ', 
+     &                 'No foam ;'
+                write (ufile,*) 'Model for foam emissivity = ', 
+     &                 'No foam ;'
         else
-                print *, 'Erreur, ne reconnait pas le fichier de sortie'
+                print *, 'Error, ambiguous output file.'
                 stop
         endif
-        write (ufile,*) 'Modele de coefficient de trainee = ',ModCD,' ;'
+        write (ufile,*) 'Model for drag coefficient = ',ModCD,' ;'
         write (ufile,*) '! freq     SST   SSS     U10   ustar theta  '
      &  //' TvN    ThN     Tv0      Th0    Tv1    Th1    U1      V1    '
      &  //' Tv2   Th2    U2      V2    lam_d    Stab Re(epsi)I(epsi)'
      &  //' Var_u    Var_c      Foam;'
-        write (ufile,*) '! constante dielectrique e = Re(e) + i Im(e) $'
+        write (ufile,*) '! dielectric constant: e = Re(e) + i Im(e) $'
 
         enddo
         endif ! if (nsorties.ge.1)
@@ -847,7 +891,7 @@ c------------------ PROGRAMME PRINCIPAL ------------------------------
 
 c  Calcul des Variance de pentes de la houle
 
-        write(50,*) 'Variances des pentes de la houle'
+        write(50,*) 'Computation of slope variances for swell ...'
         if (fSwell.eq.1) then
                 call infSwell(NSwell, hSwell, sigSwell , 
      &          KMaxSwell, VarSwell)
@@ -855,7 +899,7 @@ c  Calcul des Variance de pentes de la houle
                 VarSwell(1) = 0.0D0
                 VarSwell(2) = 0.0D0
         endif
-        write(50,*) 'Ecart type des pentes de la houle terminée'
+        write(50,*) ' ... Done.'
         write (50,*) 'SuSwell = ', sqrt(VarSwell(1))
         write (50,*) 'ScSwell = ', sqrt(VarSwell(2))
 
@@ -885,25 +929,33 @@ c epsi : constante dielectrique complexe relative à epsilon 0
 c        (ie permitivité du vide)
 c       epsi_KS pour Klein & Swift 
 c       epsi_El pour Ellison
+c       epsi_MW pour Meissner and Wentz 
 c SST  : Temperature de surface de l'ocean en °C
 c SSS  : Salinité de surface de l'ocean en ppm
 c freq : Frequence electromagnetique du radiometre en Hz
         
-        write (50,*) 'Calcul de constante dielectrique'
+        write (50,*) 'Computation of the sea water dielectric'//
+     &               ' constant ...'
         call epsilon_KS (SST(iSST), SSS(iSSS), epsi_KS, freq)
         call epsilon_El (SST(iSST), SSS(iSSS), epsi_El, freq)
+        call Epsilon_MW (SST(iSST), SSS(iSSS), epsi_MW, freq)
         if ((cepsi.eq.'K').or.(cepsi.eq.'k')) then
                 epsi = epsi_KS
                 Modepsi = 'Klein & Swift (77)'
         elseif ((cepsi.eq.'e').or.(cepsi.eq.'E')) then
                 epsi = epsi_El
                 Modepsi = 'Ellison (98)'
+        elseif ((cepsi.eq.'m').or.(cepsi.eq.'M')) then
+                epsi = epsi_MW
+                Modepsi = 'Meissner et al. (2004,2012,2014)'
         else
                 write(*,*)
-                print *,'Mauvais choix pour constante dielectrique:'
-                print *,'     K : Klein & Swift'
-                print *,'     E : Ellison'
-                print *,'Votre choix etait : ',cepsi
+                print *,'Invalid choice for dielectric constant model.'
+                print *,'Possible choices are :'
+                print *,'     K : Klein and Swift (1977)'
+                print *,'     E : Ellison et al. (1998)'
+                print *,'     M : Meissner et al. (2004,2012,2014)'
+                print *,'Current choice is: ',cepsi
                 write(*,*)
                 stop
         endif
@@ -913,20 +965,22 @@ c freq : Frequence electromagnetique du radiometre en Hz
                 epsi = conjg(epsi)
         else
                 write(*,*)
-                print *, 'Mauvais choix pour le signe de la '
-                print *, 'constante dielectrique comme positif:'
-                print *, '     O : oui'
-                print *, '     N : non'
-                print *, 'Votre choix etait : ',csigneeps
+                print *,'Invalid choice for the sign of the imaginary'//
+     &                   ' part for the dielectric constant.'
+                print *, 'Possible choices are:'
+                print *, '     O : positive imaginary part'
+                print *, '     N : negative imaginary part'
+                print *, 'Current choice is: ',csigneeps
                 write(*,*)
                 stop
         endif
 
         !epsi = (1.0D0, -1.0D16)
-        write (50,*) 'Calcul de constante dielectrique terminée'
+        write (50,*) '   ... Done.'
         write (50,*) '  Klein & Swift = ', epsi_KS
         write (50,*) '  Ellison       = ', epsi_El
-        write (50,*) '      =>       ',epsi
+        write (50,*) '  Meissner et al. = ', epsi_MW
+        write (50,*) '  Selected model    =>       ',epsi
 
 c Tabulation des Tb Atmosphérique en fonction de l'angle d'incidence 
 c theta (theta de 0 à 90° par pas de 1°)
@@ -940,8 +994,8 @@ c theta (theta de 0 à 90° par pas de 1°)
         Param(6) = 20.0D0  ! altitude maximum de l'atmosphère (km)
         Param(7) = 400  ! nb de couches d'atmosphere
         Param(8) = 6.5D0  ! module gradient de temperature (K/km)
-        write (50,*) 'Tabulation de températures de brillance de l'''
-     &   ,'atmosphère'
+        write (50,*) 'Tabulation of atmospheric brightness tem'//
+     &'peratures ...'
         call TbAtmo(Param, nParam, TbAd, TbAu, tau) 
         ! TbAd Tb atmosphere vers le bas (downward)
         ! TbAu Tb atmosphere vers le haut (upward)
@@ -954,16 +1008,22 @@ c	Write Header for TbAtmo file
         write (40,*) 'P(0,mb), T(0,K) Hr(0,%), freq (Hz), grad(K/km), the
      &ta (deg), TbUp(k), TbDown(K), tau(neper)' 
         write (40,*) '$'   
+        
+        write(*,*) ''
+        write(*,*) '----------   Atmo Tb Lookup Table  ----------------'
+        write(*,*) '  incidence  Tb Up (K)  Tb down (K)    attenuation'
+        write(*,*) '---------------------------------------------------'
 	do i = 0, 90
-        write (*,*) i*1.0D0, TbAu(i), TbAd(i), tau(i)
+        write (*,'(5x,f4.1,5x,f6.3,5x,f6.3,9x,f7.5)') i*1.0D0, TbAu(i),
+     &        TbAd(i), tau(i)
         write (40,'(1x,f7.2,1x,f6.2,1x,f5.2,1x,e11.4,1x,f5.2,3(1x,f5.2),
      &e11.4)')
      &  Param(2), Param(3),  Param(4),Param(5),Param(8),
      &   i*1.0D0, TbAu(i), TbAd(i), tau(i)
 	enddo
+        write(*,*) '---------------------------------------------------'
         close (40) ! close Tb Atmo file
-        write (50,*) 'Tabulation de températures de brillance de l'''
-     &        ,'atmosphère terminée'
+        write (50,*) ' ... Done.'
 
 
 c----------------------------------------------------------------------
@@ -985,7 +1045,8 @@ c ustar_c calculé avec Z0 Charnock 55
 c ustar_y calculé avec Z0 Yueh 97
 c ustar_don calculé avec Z0 Donelan 93(inclue le Fetch)
 
-         write (50,*) 'Calcul du stress pour U(',alt,') = ', Uz
+         write (50,*) 'Computation of wind stress for wind speed U(',alt
+     &       ,') = ', Uz
       	if (Uz.ne.0.) then
                 call root (1.D-05, 1.5D1, 1.D-06,funcUstar_y, ustar_y)
                 call root (1.D-05, 1.5D1, 1.D-06,funcUstar_c, ustar_c)
@@ -1001,20 +1062,19 @@ c ustar_don calculé avec Z0 Donelan 93(inclue le Fetch)
         elseif (fCD.eq.3) then
                 ustar = ustar_don
         else
-                print *, 'Je n''ai pas compris quel parametrisation'
-                print *, 'vous desirez pour le coefficient de trainee'
-                print *, 'Votre choix etait : ', cCD
-                print *, 'Choix Possibles : y pour Cardone (69)'
-                print *, '                  c pour Charnock (55)'
-                print *, '                  d pour Donelan (93)'
+                print *, 'Invalid choice for drag coefficient model.'
+                print *, 'Your choice: ', cCD
+                print *, 'Possible choices are:'
+                print*, '   y , Cardone (1969)'
+                print *,'   c , Charnock (1955)'
+                print *,'   d , Donelan et al. (1993)'
                 write (*,*)
                 stop
         endif
-        if (ustar.eq.1.0D04) print *, 'Changer les bornes passée à root'
-     &          ,'pour le calcul de u*'
-         write (50,*) 'Calcul du stress pour U(',alt,') = ', Uz
-     &   , ' terminée'
-         write (50,*) '   ustar = ', ustar
+        if (ustar.eq.1.0D04) print *, '/!\ Change boundary values '//
+     &   ' used in root function to compute wind stress u*, '//
+     &   'computation failed. /!\'
+         write (50,*) '   u* = ', ustar
 
 c       	write (10,*)
 c        write (10,*) '________________________________________'
@@ -1033,7 +1093,9 @@ c  U19   : Module du vent en m/s pour une hauteur de 19.5m
 c  U12   : Module du vent en m/s pour une hauteur de 12.5m
 c  U10   : Module du vent en m/s pour une hauteur de 10.0m
 
-         write (50,*) 'Conversion du vent'
+         write (50,*) 'Conversion of wind speed at different'//
+     &       '  reference heights ...'
+
        	if (Uz.ne.0.) then
                 call vent (alt,1.95D01,Uz,U19,ustar)
                 call vent (alt,1.25D01,Uz,U12,ustar)
@@ -1043,10 +1105,10 @@ c  U10   : Module du vent en m/s pour une hauteur de 10.0m
                 U12 = 0.
        	endif
          
-         write (50,*) 'Conversion du vent terminée'
-         write (50,*) '   U10 = ', U10
-         write (50,*) '   U12.5 = ', U12
-         write (50,*) '   U19.5 = ', U19
+         write (50,*) '   ... Done.'
+         write (50,*) '   U10 = ', U10, ' m/s'
+         write (50,*) '   U12.5 = ', U12, ' m/s'
+         write (50,*) '   U19.5 = ', U19, ' m/s'
 c Début boucle sur kd
 
         do ikd = 1, nkd
@@ -1061,17 +1123,18 @@ c
        	kc   = g/U19/U19
         kmid = sqrt(1.48D0/3.0D0)*kc
        	b0   = B_*dexp(1.85D-01*kc*kc)
-        write (50,*) 'Calcul de la borne inférieure du spectre'
+        write (50,*) 'Computation of lower boundary wavenumber for sea s
+     &pectrum ...'
         call root (1.0D-04, 2.0D0, 1.D-06,fkinf, kinf)
 !        kinf = 1.0D-03 
-        write (50,*) 'Calcul de la borne inférieure du spectre terminé'
+        write (50,*) '   ... Done.'
         write (50,*) '   kinf = ', kinf
         kd = max(kinf, kd)
         write (50,*) ' => kd = ', kd
-        write (50,*) 'Calcul de ''c'' du spectre de Durden & Vesecky'
+        write (50,*) 'Computation of the coefficient ''c'' in Durden & V
+     &esecky (1985) sea spectrum model ...'
         call c_ (c, U12)
-        write (50,*) 'Calcul de ''c'' du spectre de Durden & Vesecky'
-     &              ,' terminé'
+        write (50,*) '   ... Done.'
         write (50,*) '   c = ',c
 !        print*, kd
 c        if (kinf.eq.1.0D04) print *, 'Changer les bornes passée à root '
@@ -1142,7 +1205,7 @@ c  Sc : Variances des pentes en direction "downwind"
 c  kd : Nombre d'onde de coupure en rad/m
 c  cspec : modele de spectre
 
-        write (50,*) 'Calcul des variances des pentes'
+        write (50,*) 'Computation of slope variances ...'
         if (fVar.eq.1) then
             if (cspec.eq.5) then
                call SuScKud (Su, Sc, 1d-3, kd)
@@ -1155,18 +1218,22 @@ c  cspec : modele de spectre
                 Sc = sqrt(0.003D0 + 1.92D-03*U12)
         else
                 write (*,*)
-                print *, '!!!!!!!!!!  ERREUR !!!!!!!!!!!!!! '
-                print *, 'Pas de Choix valide pour le modele'
-                print *, 'des variances de pentes !!!!'
-                print *, 'votre choix est ', fVar
-                print *, 'Il doit etre C pour Cox & Munk'
-                print *, '             S pour calcule par le spectre'
+                print *, '!!!!!!!!!!  ERROR  !!!!!!!!!!!!!! '
+                print *, 'Invalid choice for the model of '
+                print *, 'slope variances.'
+                print *, 'Current choice is ', fVar
+                print *, 'Possible choices are :'
+                print *, '  - C for Cox and Munk (1955)'
+                print *, '  - S for computing variances from the sea'//
+     &                    ' spectrum model.'
                 write (*,*)
                 stop
         endif
+
         Su = sqrt(Su*Su + VarSwell(1))
         Sc = sqrt(Sc*Sc + VarSwell(2))
-        write (50,*) 'Calcul des variances des pentes terminé'
+
+        write (50,*) '   ... Done.'
         write (50,*) '   Su = ', Su
         write (50,*) '   Sc = ', Sc
 
@@ -1177,17 +1244,17 @@ c  sigma : Variances des hauteurs des petites échelles
 c  kd : Nombre d'onde de coupure en rad/m
 c  cspec : modele de spectre
 
-        write (50,*) 'Calcul des variances des hauteurs'
+        write (50,*) 'Computation of height variance ...'
         call sigma_ (sigma, kd, cspec)
-        write (50,*) 'Calcul des variances des hauteurs terminé'
-        write (50,*) '   sigma =', sigma
+        write (50,*) '   ... Done.'
+        write (50,*) '   sigma = ', sigma
 
 c----------------------------------------------------------------------
 c                       FRACTION DE COUVERTURE D'ECUME
 c
 
 c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
-        write (50,*) 'Calcul de la fraction d''écume'
+        write (50,*) 'Computation of foam fraction ...'
         if (fCouvEcume.eq.1) then
                 call foam (U10,Stab(1),Fr)
         elseif (fCouvEcume.eq.2) then
@@ -1204,15 +1271,14 @@ c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
                 Fr  = 0.0D0
         else
                         write (*,*)
-                        print *, '!!!!!!!!!!  ERREUR !!!!!!!!!!!!!! '
-                        print *, 'Je n''ai pas compris le modele'
-                        print *, 'd''ecume que vous voulez!'
+                        print *, '!!!!!!!!!!  ERROR !!!!!!!!!!!!!! '
+                        print*,'Invalid choice for foam fraction model.'
                         write (*,*)
                         stop
         endif
         Fr_ = 1.0D0 - Fr
-        write (50,*) 'Calcul de la fraction d''écume terminé'
-        write (50,*) '   Fraction d''écume = ', Fr
+        write (50,*) ' ... Done.'
+        write (50,*) '   Foam fraction = ', Fr
         close (50)
 
 c  Couverture d'ecume par methode des moindres carres
@@ -1252,7 +1318,8 @@ c               Ir = Irh(0) + Irh(1)*cos (phi_1) + Irh(2)*cos(2*phi_1)
 c       La première harmonique étant nulle, on a détermine Irh(0) 
 c       et Irh(2) en phi_1 = 0° et phi_2 = 180°
 
-        print *, 'Tabulation de la diffusion engagée ...'
+        print *, 'Tabulation of small scale scattering component started
+     &...'
 c Echantillonnage en theta de 0 à THETAmax par pas de DTHETAtab
 
 c Début BOUCLE THETA_1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1447,12 +1514,12 @@ c  Fin Boucle Theta_1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
         elseif (fDiff.eq.0) then
                 write(*,*)
-                print *, 'Pas de diffusion de Bragg!'
+                print *, '/!\ No Bragg scattering selected !'
                 write(*,*)
         else
                 write(*,*)
-                print *, 'Je n''ai pas compris si vous vouliez de la'
-                print *, 'diffusion de Bragg'
+                print *, '/!\ Invalid choice for Bragg scattering '//
+     &          'inclusion.'
                 write (*,*)
         endif
 
@@ -1655,10 +1722,22 @@ c                       EMISSIVITE DE L'ECUME epsi_sf
 c
 c  thetal  : Angle d'incidence dans le plan de la vague ( = local)
 c  nu      : Fréquence électromagnétique en GHz
-c  epsi_sf : Emissivité de l'écume en polars V (indice 1) et H(indice 2)
+c  epsi_sf : Brightness temperature of foam in polarisaion V (indice 1) et H(indice 2)
 c-----------------------------------------------------------------------
+      foamEmiss : select case (fEmisEcume)
 
-       			call esf (thetal, nu, epsi_sf)
+         case (1)
+
+                call esf (thetal, nu, epsi_sf)
+
+        case (2:6)
+
+                call foam_TbYin16_wrapper (fEmisEcume - 1, SSS(iSSS),
+     &                          SST(iSST), nu, thetal, epsi_sf)
+
+        end select foamEmiss
+
+        !print *, '-->', thetal, epsi_sf(1), epsi_sf(2)
 
 c-----------------------------------------------------------------------
 c                      COEFFICIENTS DE FRESNEL LOCAUX
@@ -1731,10 +1810,11 @@ c SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
                                 enddo
                         else
 c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
-                                print *, 'ERREUR !!!!!!!!!!!!!'
+                                print *, 'ERROR !!!!!!!!!!!!!'
                                 print *, 'thetal > THETAmax'
                                 print *, thetal, ' > ', THETAmax
-                                print *, 'Densité de Proba = ',P_Sx_Sy
+                                print *, 'Probability density of slopes 
+     &= ',P_Sx_Sy
                                 stop
                         endif
 
@@ -2013,7 +2093,7 @@ c Ecriture fichier et ecran
      &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                  Sc*Sc, Fr-Fr
-		write(*,*) 'Avec Atmo'
+		write(*,*) 'With Atmosphere'
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
      &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
@@ -2042,7 +2122,7 @@ c For GO model only
         T32_GO  = int1_GO(3,2) - int1_GO(3,3)
         T42_GO  = int1_GO(4,2) - int1_GO(4,3)
 
-        write(*,*) 'Sans Atmo'
+        write(*,*) 'Without Atmosphere'
 
 c   COMPUTE AND WRITE BRAGG SCATTERING
 
@@ -2077,10 +2157,11 @@ c SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
                                 enddo
                         else
 c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
-                                print *, 'ERREUR !!!!!!!!!!!!!'
+                                print *, 'ERROR !!!!!!!!!!!!!'
                                 print *, 'theta(itheta) > THETAmax'
                                 print *, theta(itheta), ' > ', THETAmax
-                                print *, 'Densité de Proba = ',P_Sx_Sy
+                                print *, 'Probability densoty of slopes 
+     &= ',P_Sx_Sy
                                 stop
                         endif
 

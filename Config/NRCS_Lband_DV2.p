@@ -105,30 +105,30 @@ M1
 -- Model for Foam emissivity (S : Stogryn 72)
 s
 c-----------------------------------------------------------------------
--                           PERMITTIVITE                               -
+-                           PERMITTIVITY                               -
 c-----------------------------------------------------------------------
--- Modele de constante dielectrique (e: ellison, k:klein & swift)
+-- Model for the sea water dielectric constant (e: Ellison et al. 1998, k: Klein & Swift 1977, m: Meissner et al. (2004, 2012, 2014))
 k
--- Partie imaginaire de constante dielectrique > 0 (O/N)
+-- Imaginary part of diecltric constant is (O: positive; N: negative)
 o
 c-----------------------------------------------------------------------
--                             HOULE                                    -
+-                             SWELL                                    -
 c-----------------------------------------------------------------------
--- Presence de houle (O/N)
+-- Swell is prrsent (O: yes; N: no)
 N
--- Nombre de point de tabulation de la houle (direction du vent)
+-- Number of points to compute integral of swell along the wind direction
 100
--- Nombre de point de tabulation de la houle (normale au vent)
+-- Number of points to compute integral of swell across the wind direction
 100
--- RMS des hauteurs de la houle (m)
+-- RMS for swell height (m)
 1.
--- Largeur à mi puissance de la houle (direction du vent) (m-1)
+-- Half power width of swell Gaussian PDF along wind (1/m)
 0.0025
--- Largeur à mi puissance de la houle (normale du vent) (m-1)
+-- Half power width of swell Gaussian PDF across wind (1/m)
 0.0025
--- pic densite spectrale houle (direction du vent) (m-1)
+-- Peak PDF swell along wind (1/m)
 0.
--- pic densite spectrale houle (normale du vent) (m-1)
+-- Peak PDF swell across wind (1/m)
 0.0314
 c-----------------------------------------------------------------------
 -            PARAMETERS FOR SCATTERING LOOKUP TABLE                    -

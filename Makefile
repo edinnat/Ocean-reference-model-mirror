@@ -3,6 +3,10 @@
 
 Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
 				 # e.g. 'g77', 'gfortran'
+#
+# SELECT Compiler options here
+# Opts = -Waliasing -Wall -Wampersand -Warray-bounds -Wc-binding-type -Wcharacter-truncation -Wconversion -Wfunction-elimination -Wimplicit-interface -Wimplicit-procedure -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-align-commons -Wno-tabs -Wreal-q-constant -Wsurprising -Wunderflow -Wunused-parameter -Wrealloc-lhs -Wrealloc-lhs-all -Wtarget-lifetime
+Opts = 
 
 # Do not write command lines to screen before execution
 # 	Comment out to debug
@@ -52,10 +56,10 @@ FilesTR = TbAtmo.f paramAtmo.f tauP.f convDpath.f
 FilesVT = wind.f funcUstar_y.f funcUstar_c.f 
 
 #   Dielectric Constant for sea water
-FilesEP = epsilon_KS.f epsilon_El.f 
+FilesEP = epsilon_KS.f epsilon_El.f epsilon_MW.f
 
 #   Foam emissivity and foam fraction
-FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f
+FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f foam_emiss_Yin16.f
 
 # 	Sea Spectrum
 FilesSP = c.f Su.f Sc.f P.f Sigma.f spectrum_DV_Base.f spectrum_DV.f spectrum_Lemaire.f 
@@ -136,7 +140,7 @@ clean :
 
 Tb : $(ObjectsTb)
 	echo ======= linking Tb ============
-	$(Fort) $^ -o $(join $(join $(FN), /Binaries/), $@)
+	$(Fort) $(Opts) $^ -o $(join $(join $(FN), /Binaries/), $@)
 
 TbTot : $(ObjectsTbTot)
 	echo ======= linking TbTot ============

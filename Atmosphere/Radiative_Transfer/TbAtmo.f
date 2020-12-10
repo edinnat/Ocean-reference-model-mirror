@@ -1,4 +1,4 @@
-c Tabulation de la température de brillance de l'atmosphère (TbA) en fonction de l'angle d'incidence (Theta)
+c Tabulation of atmospheric brightness temperature (TbA) as a function of incidence angle (Theta)
 
         subroutine TbAtmo(Param, nParam, TbAd, TbAu, tau)
 
@@ -55,7 +55,7 @@ c Tabulation de la température de brillance de l'atmosphère (TbA) en fonction de
                       ! '-grad'
         fichier='temperatures.txt'
         write (*,*)
-        print*, ' --> Tabulation des Tb atmosphériques'
+        print*, ' --> Start of tabulation of atmospheric Tb ...'
         write (*,*)
 
 c     calcul les profils de pression, température, coef. d'abosrption
@@ -134,6 +134,6 @@ c	do j = 1, ncouche+1
 c		print*, dalt*(j-1), T(j), P(j), q(j)
 c	enddo
 c <
-        print*, ' --> fin de la tabulation des Tb atmosphériques'
+        print*, ' ... tabulation of atmospheric Tb ended.'
 
         end ! fin de programme
