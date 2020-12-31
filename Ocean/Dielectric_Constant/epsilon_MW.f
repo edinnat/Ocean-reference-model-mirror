@@ -67,9 +67,30 @@
 
       if (SST.le.-40.D0) then
 
-        print *, 'Error in epsilon_MW. SST is lower than 40 degree C.'
+        print *, 'Error in epsilon_MW. SST is lower than -40 degree C.'
         error stop
 
+      endif
+      
+      if (SST.ge.34.D0) then
+      
+        print *, ' Error in espilon_MW. SST is larger than +34 degree C.'
+        error stop
+        
+      endif
+      
+      if (SSS.ge.40.D0) then
+      
+        print *, ' Error in espilon_MW. SSS is larger than +40 psu.'
+        error stop
+        
+      endif
+      
+      if (SSS.lt.0.D0) then
+      
+        print *, ' Error in espilon_MW. SSS is negative.'
+        error stop
+        
       endif
         
 
