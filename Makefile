@@ -56,7 +56,7 @@ FilesTR = TbAtmo.f paramAtmo.f tauP.f convDpath.f
 FilesVT = wind.f funcUstar_y.f funcUstar_c.f 
 
 #   Dielectric Constant for sea water
-FilesEP = epsilon_KS.f epsilon_El.f epsilon_MW.f
+FilesEP = epsilon_KS.f epsilon_El.f epsilon_MW.f epsilon_hifreq.f
 
 #   Foam emissivity and foam fraction
 FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f foam_emiss_Yin16.f

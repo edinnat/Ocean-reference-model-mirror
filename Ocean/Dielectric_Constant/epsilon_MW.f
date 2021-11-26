@@ -74,7 +74,7 @@
       
       if (SST.ge.34.D0) then
       
-        print *, ' Error in espilon_MW. SST is larger than +34 degree C.'
+        print *, 'Error in espilon_MW. SST is larger than +34 degree C.'
         error stop
         
       endif
