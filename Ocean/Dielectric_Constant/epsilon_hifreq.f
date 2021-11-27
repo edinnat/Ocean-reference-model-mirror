@@ -138,6 +138,12 @@
      &    (f_wn .gt. table_wn(nwn))) then
         print *, 'Supplied frequency is outside range of dataset: ',
      &             f_wn, 'cm^-1, ', f, 'Hz'
+        print *, ''
+        print *, 'Allowed range of frequency when using the',
+     &           ' high-frequency dielectric model is: '
+        print *, '         0.962 cm^-1 < - > 14999.6 cm^-1' 
+        print *, '          28.8 GHz   < - > 449677  GHz'
+        
         print *, 'Stopping'
         error stop
       endif
