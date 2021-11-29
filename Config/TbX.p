@@ -2,26 +2,14 @@ c-----------------------------------------------------------------------
 -                        SENSOR PARAMETERS                          -
 c-----------------------------------------------------------------------
 -- Frequency band for tuning foam parameters (e.g., L, C, X, K, Ka, W)
-L
+X
 -- Electromagnetic Wavelength (meter) [e.g. L-band = 0.2123]
-0.2123
+0.0283
 -- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5]
-7.4842
+55.5015
 9999
 -- Earth incidence angle(s) (degrees)
-0.
-5.
-10.
-15.
-20.
-25.
-30.
-35.
-40.
-45.
-50.
 55.
-60.
 9999 
 c-----------------------------------------------------------------------
 -                              WIND                                    -

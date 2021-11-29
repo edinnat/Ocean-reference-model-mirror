@@ -17,6 +17,18 @@ c   * SST est la temperature de surface en degres Centigrades
 c   * ustar est le stress du vent
 c-----------------------------------------------------------------------
 
+c-------------------------------------------------------------------------------------
+c   Modifications as of 10 Nov 2021 
+c    by Magdalena Anguelova, NRL, Washington, DC, USA
+C	* Frequency band (nuBand = L,C,X,K,Ka,W) is input from the config file Tb.p (Line 461)
+c	* Introduce case 7 for foam emissivity tuned for foam parameters (line 1757)
+c	* Call to subroutine for tuned foam emissivity (line 1759)
+c	* Stability parameter for foam coverage M1 (Monahan, 1986, eq.5) with minus sign "-" (Line 1278)
+c		as atm. stability from the config file Tb.p is Tair-Twater
+c	* Added foam + atmopshere calculations (only foam without atmopshere in the original) (Lines 2082-2104)
+c-------------------------------------------------------------------------------------
+
+
        	implicit none
 
 c Passage des parmaètres communs
@@ -82,6 +94,7 @@ c Déclaration des variables
         character*1  cType
         character*16 cCouvEcume
         character*16  cEmisEcume
+        character*16 nuBand
         character*1  cCD
      	character*1  cAtmo
      	character*1  cSwell
@@ -445,6 +458,8 @@ c------------------ READ INPUT PARAMETERS -----------------------------
      	read (30,'(a)') jump_line
      	read (30,'(a)') jump_line
      	read (30,'(a)') jump_line
+    	read (30,*) nuBand					! frequency Band
+     	read (30,'(a)') jump_line
      	read (30,*) lambda
        	freq = 3.D08/lambda
        	nu = 3.D-01/lambda
@@ -770,6 +785,9 @@ c                ModSpectre = 'Power law'
         elseif ((cEmisEcume.eq.'M-Ku-S')) then
                 ModEmisEcume = 'Yin et al. 2016 - M-Ku-S'
                 fEmisEcume = 6
+	elseif ((cEmisEcume.eq.'M-Du-Tune')) then
+                ModEmisEcume = 'Yin et al. 2016 - M-Du-Tune'
+                fEmisEcume = 7	
         else
                 write(*,*)
                 print *,'Invalid choice for foam emissivity model.'//
@@ -780,6 +798,7 @@ c                ModSpectre = 'Power law'
                 print *,'     M-Du-S : Yin et al. (2016) M-Du-S version'
                 print *,'     M-Ku-E : Yin et al. (2016) M-Ku-E version'
                 print *,'     M-Ku-S : Yin et al. (2016) M-Ku-S version'
+                print *,'  M-Du-tune : Yin et al. (2016) tuned version'
                 print *,'Current choice is: ',cEmisEcume
                 write(*,*)
                 stop
@@ -1256,7 +1275,7 @@ c
 c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
         write (50,*) 'Computation of foam fraction ...'
         if (fCouvEcume.eq.1) then
-                call foam (U10,Stab(1),Fr)
+                call foam (U10,-Stab(1),Fr)
         elseif (fCouvEcume.eq.2) then
                 Fr = 2.95D-6*U10**(3.52)
         elseif (fCouvEcume.eq.3) then
@@ -1735,6 +1754,11 @@ c-----------------------------------------------------------------------
                 call foam_TbYin16_wrapper (fEmisEcume - 1, SSS(iSSS),
      &                          SST(iSST), nu, thetal, epsi_sf)
 
+	case (7) 	! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
+
+                call foam_emiss(nuband, SSS(iSSS), SST(iSST),
+     &                           nu, thetal, epsi_sf)
+
         end select foamEmiss
 
         !print *, '-->', thetal, epsi_sf(1), epsi_sf(2)
@@ -2031,6 +2055,7 @@ c int1(1,4) : Tb verticale en phi = TPHI(4) = 180°
 c Le premier indice de int1 defini l'indice du parametre de stokes et 
 c varie de 1 à 4 respectivement pour Tv, Th, U et V.
 
+c SANS ATMO
         Tv0 = 0.25D0*(int1e(1,1) + 2.0D0*int1e(1,3) + int1e(1,4))
         Th0 = 0.25D0*(int1e(2,1) + 2.0D0*int1e(2,3) + int1e(2,4))
         Tv1 = 0.5D0 *(int1e(1,1) - int1e(1,4)) 
@@ -2054,6 +2079,31 @@ c     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2,
 c     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
 c     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
 
+c AVEC ATMO
+        Tv0 = 0.25D0*(int1eA(1,1)+ 2.0D0*int1eA(1,3)+int1eA(1,4))+AtmoU
+        Th0 = 0.25D0*(int1eA(2,1)+ 2.0D0*int1eA(2,3)+int1eA(2,4))+AtmoU
+        Tv1 = 0.5D0 *(int1eA(1,1) - int1eA(1,4)) 
+        Th1 = 0.5D0 *(int1eA(2,1) - int1eA(2,4))
+        U1  = int1eA(3,3) 
+        V1  = int1eA(4,3)
+        Tv2 = 0.25D0*(int1eA(1,1) - 2.0D0*int1eA(1,3) + int1eA(1,4))
+        Th2 = 0.25D0*(int1eA(2,1) - 2.0D0*int1eA(2,3) + int1eA(2,4))
+        U2  = int1eA(3,2) - int1eA(3,3)
+        V2  = int1eA(4,2) - int1eA(4,3)
+
+c Ecriture fichier et ecran
+        write (15,1000) nu, SST(iSST), SSS(iSSS), U10, 
+     &                 ustar*100, theta(itheta), Tvn, Thn,
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+c        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+c     &                 theta(itheta), Tvn, Thn,
+c     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+c     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+c     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+
+
 c----------------------------------------------------------------------
 c                       CALCUL DES HARMONIQUES SANS ECUME
 c
@@ -2064,7 +2114,7 @@ c int1(1,4) : Tb verticale en phi = TPHI(4) = 180°
 c Le premier indice de int1 defini l'indice du parametre de stokes et 
 c varie de 1 à 4 respectivement pour Tv, Th, U et V.
 
-
+c AVEC ATMO
         Tv0 = 0.25D0*(int1A(1,1)+2.0D0*int1A(1,3)+int1A(1,4))+AtmoU
         Th0 = 0.25D0*(int1A(2,1)+2.0D0*int1A(2,3)+int1A(2,4))+AtmoU
         Tv1 = 0.5D0 *(int1A(1,1) - int1A(1,4)) 
@@ -2100,6 +2150,7 @@ c Ecriture fichier et ecran
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr-Fr
 
+c SANS ATMO
         Tv0 = 0.25D0*(int1(1,1)+2.0D0*int1(1,3)+int1(1,4))
         Th0 = 0.25D0*(int1(2,1)+2.0D0*int1(2,3)+int1(2,4))
         Tv1 = 0.5D0 *(int1(1,1) - int1(1,4)) 

@@ -1,12 +1,13 @@
 # Makefile to compile Fortran Code for the Ocean Reference Model Project
 #
 
-Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
-				 # e.g. 'g77', 'gfortran'
+Fort = 'gfortran'
+#Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
+#				 # e.g. 'g77', 'gfortran'
 #
 # SELECT Compiler options here
 # Opts = -Waliasing -Wall -Wampersand -Warray-bounds -Wc-binding-type -Wcharacter-truncation -Wconversion -Wfunction-elimination -Wimplicit-interface -Wimplicit-procedure -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-align-commons -Wno-tabs -Wreal-q-constant -Wsurprising -Wunderflow -Wunused-parameter -Wrealloc-lhs -Wrealloc-lhs-all -Wtarget-lifetime
-Opts = 
+Opts = -fPIC
 
 # Do not write command lines to screen before execution
 # 	Comment out to debug
@@ -60,6 +61,7 @@ FilesEP = epsilon_KS.f epsilon_El.f epsilon_MW.f
 
 #   Foam emissivity and foam fraction
 FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f foam_emiss_Yin16.f
+FilesEC += mod_foam_emiss.f90 foam_emiss.f90
 
 # 	Sea Spectrum
 FilesSP = c.f Su.f Sc.f P.f Sigma.f spectrum_DV_Base.f spectrum_DV.f spectrum_Lemaire.f 
@@ -123,7 +125,9 @@ SourcesRA = $(SourcesRO) $(addprefix $(RA),$(FilesRA))
 
 # Create objects *.o from source files *.f
 ObjectsTbTot = $(SourcesRO1:.f=.o)
-ObjectsTb    = $(SourcesRO2:.f=.o)
+BasenamesTb = $(basename $(SourcesRO2))
+ObjectsTb    = $(addsuffix .o, $(BasenamesTb))
+#ObjectsTb    = $(SourcesRO2:.f=.o)
 ObjectsNRCS   = $(SourcesRA:.f=.o)
 
 #-----------------------------------------------------------------------
@@ -157,5 +161,10 @@ NRCS : $(ObjectsNRCS)
 %.o : %.f
 	echo Compiling $*.f
 	$(Fort) -c $*.f -o $*.o -O3 -funroll-loops
+	echo '  -->' $*.o created
+
+%.o : %.f90
+	echo Compiling $*.f90
+	$(Fort) -c $*.f90 -fPIC -o $*.o -O3 -funroll-loops
 	echo '  -->' $*.o created
 #-----------------------------------------------------------------------
