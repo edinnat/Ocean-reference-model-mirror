@@ -75,7 +75,7 @@ M-Du-Tune
 c-----------------------------------------------------------------------
 -                           PERMITTIVITY                               -
 c-----------------------------------------------------------------------
--- Model for the sea water dielectric constant (e: Ellison et al. 1998, k: Klein & Swift 1977, m: Meissner et al. (2004, 2012, 2014))
+-- Model for the sea water dielectric constant (e: Ellison et al. 1998, k: Klein & Swift 1977, m: Meissner et al. (2004, 2012, 2014), h: high frequency from tabulated data, 28.8-449677 GHz, see epsilon_hifreq.f)
 m
 -- Imaginary part of diecltric constant is (O: positive; N: negative)
 o

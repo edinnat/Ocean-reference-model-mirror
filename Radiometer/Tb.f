@@ -300,6 +300,7 @@ c Déclaration des variables
        	double complex epsi_KS
        	double complex epsi_El
        	double complex epsi_MW
+       	double complex epsi_hifreq
        	double complex epsi
        	double complex epsi_
         double complex C1
@@ -690,12 +691,15 @@ c                ModSpectre = 'Power law'
                 Modepsi = 'Ellison (98)'
         elseif ((cepsi.eq.'m').or.(cepsi.eq.'M')) then
                 Modepsi = 'Meissner et al. (2004,2012,2014)'
+        elseif ((cepsi.eq.'h').or.(cepsi.eq.'H')) then
+                Modepsi = 'High frequency dataset'
         else
                 write(*,*)
                 print *,'Invalid choice for dielectric constant model:'
                 print *,'     K : Klein & Swift (77)'
                 print *,'     E : Ellison (98)'
                 print *,'     M : Meissner et al. (2004,2012,2014)'
+                print *,'     H : High frequency dataset'
                 print *,'Current choice is: ',cepsi
                 write(*,*)
                 stop
@@ -896,7 +900,8 @@ c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
                 stop
         endif
         write (ufile,*) 'Model for drag coefficient = ',ModCD,' ;'
-        write (ufile,*) '! freq     SST   SSS     U10   ustar theta  '
+        write (ufile,*) '! freq        SST   SSS     U10   ustar'
+     &  //' theta  ' 
      &  //' TvN    ThN     Tv0      Th0    Tv1    Th1    U1      V1    '
      &  //' Tv2   Th2    U2      V2    lam_d    Stab Re(epsi)I(epsi)'
      &  //' Var_u    Var_c      Foam;'
@@ -949,6 +954,7 @@ c        (ie permitivité du vide)
 c       epsi_KS pour Klein & Swift 
 c       epsi_El pour Ellison
 c       epsi_MW pour Meissner and Wentz 
+c       espi_hifreq [high frequency dataset]
 c SST  : Temperature de surface de l'ocean en °C
 c SSS  : Salinité de surface de l'ocean en ppm
 c freq : Frequence electromagnetique du radiometre en Hz
@@ -958,6 +964,7 @@ c freq : Frequence electromagnetique du radiometre en Hz
         call epsilon_KS (SST(iSST), SSS(iSSS), epsi_KS, freq)
         call epsilon_El (SST(iSST), SSS(iSSS), epsi_El, freq)
         call Epsilon_MW (SST(iSST), SSS(iSSS), epsi_MW, freq)
+        call epsilon_hifreq (SST(iSST), SSS(iSSS), epsi_hifreq, freq)
         if ((cepsi.eq.'K').or.(cepsi.eq.'k')) then
                 epsi = epsi_KS
                 Modepsi = 'Klein & Swift (77)'
@@ -967,6 +974,9 @@ c freq : Frequence electromagnetique du radiometre en Hz
         elseif ((cepsi.eq.'m').or.(cepsi.eq.'M')) then
                 epsi = epsi_MW
                 Modepsi = 'Meissner et al. (2004,2012,2014)'
+        elseif ((cepsi.eq.'h').or.(cepsi.eq.'H')) then
+                epsi = epsi_hifreq
+                Modepsi = 'High frequency dataset'
         else
                 write(*,*)
                 print *,'Invalid choice for dielectric constant model.'
@@ -974,6 +984,7 @@ c freq : Frequence electromagnetique du radiometre en Hz
                 print *,'     K : Klein and Swift (1977)'
                 print *,'     E : Ellison et al. (1998)'
                 print *,'     M : Meissner et al. (2004,2012,2014)'
+                print *,'     H : High frequency dataset'
                 print *,'Current choice is: ',cepsi
                 write(*,*)
                 stop
@@ -1033,7 +1044,7 @@ c	Write Header for TbAtmo file
         write(*,*) '  incidence  Tb Up (K)  Tb down (K)    attenuation'
         write(*,*) '---------------------------------------------------'
 	do i = 0, 90
-        write (*,'(5x,f4.1,5x,f6.3,5x,f6.3,9x,f7.5)') i*1.0D0, TbAu(i),
+        write (*,'(5x,f4.1,5x,f7.3,5x,f7.3,9x,f7.5)') i*1.0D0, TbAu(i),
      &        TbAd(i), tau(i)
         write (40,'(1x,f7.2,1x,f6.2,1x,f5.2,1x,e11.4,1x,f5.2,3(1x,f5.2),
      &e11.4)')
@@ -2277,7 +2288,7 @@ c  Fin Boucle SSS
 c ---------- Formats --------------------------      
   100     format (1x,f5.2,4(1x,f4.1),2(1x,f6.2),2(1x,f6.2)
      &          ,8(1x,f5.2))
- 1000     format (1x,f9.5,1x,f5.2,1x,f6.3,2(1x,f6.2),1x,f4.1,4(1x,f7.3),
+ 1000     format (1x,f12.5,1x,f5.2,1x,f6.3,2(1x,f6.2),1x,f4.1,4(1x,f7.3),
      &        8(1x,f6.3),1x,e9.3,1x,f5.2,2(1x,f6.2),2(1x,e9.3),1x,f5.1,
      &       18(1x,f7.3))
         stop
