@@ -127,7 +127,8 @@ SourcesRA = $(SourcesRO) $(addprefix $(RA),$(FilesRA))
 ObjectsTbTot = $(SourcesRO1:.f=.o)
 BasenamesTb = $(basename $(SourcesRO2))
 ObjectsTb    = $(addsuffix .o, $(BasenamesTb))
-#ObjectsTb    = $(SourcesRO2:.f=.o)
+# Old version disable since introduction of *.f90 files:
+#ObjectsTb    = $(SourcesRO2:.f=.o) 
 ObjectsNRCS   = $(SourcesRA:.f=.o)
 
 #-----------------------------------------------------------------------
@@ -158,11 +159,13 @@ NRCS : $(ObjectsNRCS)
 
 # Rule to build all objects --------------------------------------------
 
+# Compile objects from *.f files
 %.o : %.f
 	echo Compiling $*.f
 	$(Fort) -c $*.f -o $*.o -O3 -funroll-loops
 	echo '  -->' $*.o created
 
+# Compile objects from *.f90 files
 %.o : %.f90
 	echo Compiling $*.f90
 	$(Fort) -c $*.f90 -fPIC -o $*.o -O3 -funroll-loops
