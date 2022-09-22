@@ -964,7 +964,6 @@ c freq : Frequence electromagnetique du radiometre en Hz
         call epsilon_KS (SST(iSST), SSS(iSSS), epsi_KS, freq)
         call epsilon_El (SST(iSST), SSS(iSSS), epsi_El, freq)
         call Epsilon_MW (SST(iSST), SSS(iSSS), epsi_MW, freq)
-        call epsilon_hifreq (SST(iSST), SSS(iSSS), epsi_hifreq, freq)
         if ((cepsi.eq.'K').or.(cepsi.eq.'k')) then
                 epsi = epsi_KS
                 Modepsi = 'Klein & Swift (77)'
@@ -975,6 +974,9 @@ c freq : Frequence electromagnetique du radiometre en Hz
                 epsi = epsi_MW
                 Modepsi = 'Meissner et al. (2004,2012,2014)'
         elseif ((cepsi.eq.'h').or.(cepsi.eq.'H')) then
+            ! Call only if used (i.e. with adequate freqeuncy) because
+            ! freq out of bound will cause code to abort
+          call epsilon_hifreq (SST(iSST), SSS(iSSS), epsi_hifreq, freq)
                 epsi = epsi_hifreq
                 Modepsi = 'High frequency dataset'
         else
