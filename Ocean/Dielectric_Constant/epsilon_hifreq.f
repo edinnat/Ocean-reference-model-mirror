@@ -145,7 +145,7 @@
         print *, '          28.8 GHz   < - > 449677  GHz'
         
         print *, 'Stopping'
-        error stop
+        stop
       endif
       do index = 1, nwn-1
         if ((f_wn .ge. table_wn(index)) .and.
