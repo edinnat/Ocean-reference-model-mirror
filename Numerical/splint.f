@@ -1,9 +1,5 @@
-c
-c----   Subroutine splint is the Numerical Recipes sister routine
-c       for the cubic spline routine, spline. It takes the data
-c       points, xa and ya vectors of length n, and the second
-c       derivatives computed by spline, y2a, and it computes the
-c       y value for the specified x value.
+c----   Subroutine splint  takes the data points, xa and ya vectors of length n, and the second
+c       derivatives computed by spline, y2a, and it computes the y value for the specified x value.
 c
         subroutine splint(xa,ya,y2a,n,x,y)
         dimension xa(n),ya(n),y2a(n)
@@ -19,7 +15,10 @@ c
            goto 1
         endif
         h=xa(khi)-xa(klo)
-        if (h.eq.0.) pause 'bad xa input.'
+        if (h.eq.0.) then
+            write(*,*) 'Error from splint.f: bad xa input.'
+            stop
+        endif
         a=(xa(khi)-x)/h
         b=(x-xa(klo))/h
         y=a*ya(klo)+b*ya(khi)+

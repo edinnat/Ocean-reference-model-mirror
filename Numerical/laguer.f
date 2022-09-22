@@ -52,6 +52,7 @@
           IF(ABS(DX).LE.EPS*ABS(X))RETURN
         ENDIF
 12    CONTINUE
-      PAUSE 'too many iterations'
+      WRITE(*,*) 'Too many iterations in subroutine laguer.f'
+      STOP
       RETURN
       END

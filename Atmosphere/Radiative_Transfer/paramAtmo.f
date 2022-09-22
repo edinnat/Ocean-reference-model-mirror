@@ -8,18 +8,18 @@
 
         double precision f                                              ! frequence (Hz)
         double precision nu                                             ! frequence (GHz)
-        double precision KO2(1:10000)                                         ! profil du coef d'absorption de O2 (neper/km)
-        double precision KH2O(1:10000)                                        ! profil du coef d'absorption de H2O (neper/km)
+        double precision KO2(0:10000)                                         ! profil du coef d'absorption de O2 (neper/km)
+        double precision KH2O(0:10000)                                        ! profil du coef d'absorption de H2O (neper/km)
         double precision T0                                             ! T0 temperature a la surface de la mer (°K)
         double precision P0                                             ! P0 pression a la surface de la mer (mbar)
         double precision R                                              ! Humidite relative (%) constante
         double precision altmax                                         ! altitude max de l'atmosphere (km)
-        double precision altTab(1:10000)                                 ! tabulation altitudes des limites des couches
-        double precision TTab (1:10000)                                  ! Temperature tabulees
-        double precision altTTab(1:10000)                                ! altitudes des temperatures tabulees
-        double precision T(1:10000)                                           ! profil de temperature (°C)
-        double precision P(1:10000)                                           ! profil de pression (mbar) 
-        double precision q(1:10000)                                           ! Profil d'humidite absolue
+        double precision altTab(0:10000)                                 ! tabulation altitudes des limites des couches
+        double precision TTab (0:10000)                                  ! Temperature tabulees
+        double precision altTTab(0:10000)                                ! altitudes des temperatures tabulees
+        double precision T(0:10000)                                           ! profil de temperature (°C)
+        double precision P(0:10000)                                           ! profil de pression (mbar) 
+        double precision q(0:10000)                                           ! Profil d'humidite absolue
         double precision grad                                           ! gradient de T dans la troposphere(K/km)
         double precision dT
         double precision F0_O2(44)                                      ! Frequences raies O2 (GHz)

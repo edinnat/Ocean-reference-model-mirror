@@ -24,7 +24,10 @@
           HP=XA(I+M)-X
           W=C(I+1)-D(I)
           DEN=HO-HP
-          IF(DEN.EQ.0.D0) PAUSE
+          IF(DEN.EQ.0.D0) THEN 
+              WRITE(*,*) 'Error in POLINT routine'
+              STOP
+          ENDIF
           DEN=W/DEN
           D(I)=HP*DEN
           C(I)=HO*DEN

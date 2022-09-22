@@ -391,11 +391,11 @@ c        PI2=2.0D0*acos(-1.0D0)
         TPHI(3)   = 90.0D0 
         TPHI(4)   = 180.0D0 
         do i = 0, 2
+            do indice = 1, 4
                 do j = 1, 180
-                        do indice = 1, 4
-                                Irh(i, j, indice) = 0.0D0
-                        enddo
+                        Irh(i, indice, j) = 0.0D0
                 enddo
+            enddo
         enddo
 c----------- Process Time and Date of Program Execution -----------        
         call date_and_time(date, time)
