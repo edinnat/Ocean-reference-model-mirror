@@ -1764,7 +1764,7 @@ c-----------------------------------------------------------------------
 
         case (2:6)
 
-                call foam_TbYin16_wrapper (fEmisEcume - 1, SSS(iSSS),
+                call foam_Tb_Yin16 (fEmisEcume - 1, SSS(iSSS),
      &                          SST(iSST), nu, thetal, epsi_sf)
 
 	case (7) 	! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
@@ -2059,7 +2059,7 @@ c Fin boucle phi<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 c----------------------------------------------------------------------
-c                       CALCUL DES HARMONIQUES AVEC ECUME
+c                       COMPUTE TB HARMONIC COEFFICIENTS
 c
 c int1(1,1) : Tb verticale en phi = TPHI(1) = 0°
 c int1(1,2) : Tb verticale en phi = TPHI(2) = 45°
@@ -2068,102 +2068,9 @@ c int1(1,4) : Tb verticale en phi = TPHI(4) = 180°
 c Le premier indice de int1 defini l'indice du parametre de stokes et 
 c varie de 1 à 4 respectivement pour Tv, Th, U et V.
 
-c SANS ATMO
-        Tv0 = 0.25D0*(int1e(1,1) + 2.0D0*int1e(1,3) + int1e(1,4))
-        Th0 = 0.25D0*(int1e(2,1) + 2.0D0*int1e(2,3) + int1e(2,4))
-        Tv1 = 0.5D0 *(int1e(1,1) - int1e(1,4)) 
-        Th1 = 0.5D0 *(int1e(2,1) - int1e(2,4))
-        U1  = int1e(3,3) 
-        V1  = int1e(4,3)
-        Tv2 = 0.25D0*(int1e(1,1) - 2.0D0*int1e(1,3) + int1e(1,4))
-        Th2 = 0.25D0*(int1e(2,1) - 2.0D0*int1e(2,3) + int1e(2,4))
-        U2  = int1e(3,2) - int1e(3,3)
-        V2  = int1e(4,2) - int1e(4,3)
 
-c Ecriture fichier et ecran
-        write (10,1000) nu, SST(iSST), SSS(iSSS), U10, 
-     &                 ustar*100, theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
-c        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-c     &                 theta(itheta), Tvn, Thn,
-c     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-c     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-c     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+c ------- NO ATMO & NO FOAM  ----------
 
-c AVEC ATMO
-        Tv0 = 0.25D0*(int1eA(1,1)+ 2.0D0*int1eA(1,3)+int1eA(1,4))+AtmoU
-        Th0 = 0.25D0*(int1eA(2,1)+ 2.0D0*int1eA(2,3)+int1eA(2,4))+AtmoU
-        Tv1 = 0.5D0 *(int1eA(1,1) - int1eA(1,4)) 
-        Th1 = 0.5D0 *(int1eA(2,1) - int1eA(2,4))
-        U1  = int1eA(3,3) 
-        V1  = int1eA(4,3)
-        Tv2 = 0.25D0*(int1eA(1,1) - 2.0D0*int1eA(1,3) + int1eA(1,4))
-        Th2 = 0.25D0*(int1eA(2,1) - 2.0D0*int1eA(2,3) + int1eA(2,4))
-        U2  = int1eA(3,2) - int1eA(3,3)
-        V2  = int1eA(4,2) - int1eA(4,3)
-
-c Ecriture fichier et ecran
-        write (15,1000) nu, SST(iSST), SSS(iSSS), U10, 
-     &                 ustar*100, theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
-c        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-c     &                 theta(itheta), Tvn, Thn,
-c     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-c     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-c     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
-
-
-c----------------------------------------------------------------------
-c                       CALCUL DES HARMONIQUES SANS ECUME
-c
-c int1(1,1) : Tb verticale en phi = TPHI(1) = 0°
-c int1(1,2) : Tb verticale en phi = TPHI(2) = 45°
-c int1(1,3) : Tb verticale en phi = TPHI(3) = 90°
-c int1(1,4) : Tb verticale en phi = TPHI(4) = 180°
-c Le premier indice de int1 defini l'indice du parametre de stokes et 
-c varie de 1 à 4 respectivement pour Tv, Th, U et V.
-
-c AVEC ATMO
-        Tv0 = 0.25D0*(int1A(1,1)+2.0D0*int1A(1,3)+int1A(1,4))+AtmoU
-        Th0 = 0.25D0*(int1A(2,1)+2.0D0*int1A(2,3)+int1A(2,4))+AtmoU
-        Tv1 = 0.5D0 *(int1A(1,1) - int1A(1,4)) 
-        Th1 = 0.5D0 *(int1A(2,1) - int1A(2,4))
-        U1  = int1A(3,3) 
-        V1  = int1A(4,3)
-        Tv2 = 0.25D0*(int1A(1,1)-2.0D0*int1A(1,3)+int1A(1,4))
-        Th2 = 0.25D0*(int1A(2,1)-2.0D0*int1A(2,3)+int1A(2,4))
-        U2  = int1A(3,2) - int1A(3,3)
-        V2  = int1A(4,2) - int1A(4,3)
-
-c        Tv0 = 0.25D0*(int1e(1,1) + 2.0D0*int1e(1,3) + int1e(1,4))+AtmoU
-c        Th0 = 0.25D0*(int1e(2,1) + 2.0D0*int1e(2,3) + int1e(2,4))+AtmoU
-c        Tv1 = 0.5D0 *(int1e(1,1) - int1e(1,4)) 
-c        Th1 = 0.5D0 *(int1e(2,1) - int1e(2,4))
-c        U1  = int1e(3,3) 
-c        V1  = int1e(4,3)
-c        Tv2 = 0.25D0*(int1e(1,1) - 2.0D0*int1e(1,3) + int1e(1,4))
-c        Th2 = 0.25D0*(int1e(2,1) - 2.0D0*int1e(2,3) + int1e(2,4))
-c        U2  = int1e(3,2) - int1e(3,3)
-c        V2  = int1e(4,2) - int1e(4,3)
-
-c Ecriture fichier et ecran
-        write (25,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                  theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
-     &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
-     &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                  Sc*Sc, Fr-Fr
-		write(*,*) 'With Atmosphere'
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
-     &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
-     &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                 Sc*Sc, Fr-Fr
-
-c SANS ATMO
         Tv0 = 0.25D0*(int1(1,1)+2.0D0*int1(1,3)+int1(1,4))
         Th0 = 0.25D0*(int1(2,1)+2.0D0*int1(2,3)+int1(2,4))
         Tv1 = 0.5D0 *(int1(1,1) - int1(1,4)) 
@@ -2174,7 +2081,8 @@ c SANS ATMO
         Th2 = 0.25D0*(int1(2,1)-2.0D0*int1(2,3)+int1(2,4))
         U2  = int1(3,2) - int1(3,3)
         V2  = int1(4,2) - int1(4,3)
-c For GO model only
+
+c       For GO model only
         Tv0_GO = 0.25D0*(int1_GO(1,1)+2.0D0*int1_GO(1,3)+int1_GO(1,4))
         Th0_GO = 0.25D0*(int1_GO(2,1)+2.0D0*int1_GO(2,3)+int1_GO(2,4))
         Tv1_GO = 0.5D0 *(int1_GO(1,1) - int1_GO(1,4)) 
@@ -2186,15 +2094,14 @@ c For GO model only
         T32_GO  = int1_GO(3,2) - int1_GO(3,3)
         T42_GO  = int1_GO(4,2) - int1_GO(4,3)
 
-        write(*,*) 'Without Atmosphere'
 
-c   COMPUTE AND WRITE BRAGG SCATTERING
+c       COMPUTE AND WRITE BRAGG SCATTERING
 
-c SI ON RESTE DANS LE DOMAINE TABULÉ
+c       SI ON RESTE DANS LE DOMAINE TABULÉ
                         if (theta(itheta).le.THETAmax) then
                                 ind     = theta(itheta)/DTHETAtab
                                 Poids   = (theta(itheta)/DTHETAtab-ind) 
-c Fondamental
+c       Fondamental
                         Tv0_SPM = Tw*(-(Irh(0,1,ind)*(1.0D0-Poids)
      &                            + Irh(0,1,ind+1)*Poids))
                         Th0_SPM = Tw*(-(Irh(0,2,ind)*(1.0D0-Poids)
@@ -2203,7 +2110,7 @@ c Fondamental
      &                            + Irh(0,3,ind+1)*Poids))
                         T40_SPM = Tw*(-(Irh(0,4,ind)*(1.0D0-Poids)
      &                            + Irh(0,4,ind+1)*Poids))
-c 2eme Harmonique
+c       2eme Harmonique
                         Tv2_SPM = Tw*(-(Irh(2,1,ind)*(1.0D0-Poids)
      &                                    + Irh(2,1,ind+1)*Poids))
                         Th2_SPM = Tw*(-(Irh(2,2,ind)*(1.0D0-Poids)
@@ -2213,14 +2120,14 @@ c 2eme Harmonique
                         T42_SPM = Tw*(-(Irh(2,4,ind)*(1.0D0-Poids)
      &                                    + Irh(2,4,ind+1)*Poids))
 
-c SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
+c       SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
                         elseif ((P_Sx_Sy.eq.0.D0).or.
      &                     (theta(itheta).le.THETAmax*1.0001D0)) then
                                 do indice = 1, 4
                                         Diff(indice) = 0.0D0
                                 enddo
                         else
-c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
+c       SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
                                 print *, 'ERROR !!!!!!!!!!!!!'
                                 print *, 'theta(itheta) > THETAmax'
                                 print *, theta(itheta), ' > ', THETAmax
@@ -2230,6 +2137,7 @@ c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
                         endif
 
 
+c Write to output file and screen
 
         write (20,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
      &                  theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
@@ -2241,6 +2149,9 @@ c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
      &                 , Th1_GO, T31_GO, T41_GO, Tv2_GO, Th2_GO, T32_GO,
      &                  T42_GO
 
+        write(*,*) ''
+        write(*,*) '----------   Results   ---------'
+        write(*,*) '-- No Atmosphere & No Foam '
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
      &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
@@ -2250,6 +2161,92 @@ c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
      &                  T42_SPM, Tv0_GO, Th0_GO, Tv1_GO
      &                 , Th1_GO, T31_GO, T41_GO, Tv2_GO, Th2_GO, T32_GO,
      &                  T42_GO
+
+
+c ------- NO ATMO & WITH FOAM  ----------
+
+        Tv0 = 0.25D0*(int1e(1,1) + 2.0D0*int1e(1,3) + int1e(1,4))
+        Th0 = 0.25D0*(int1e(2,1) + 2.0D0*int1e(2,3) + int1e(2,4))
+        Tv1 = 0.5D0 *(int1e(1,1) - int1e(1,4)) 
+        Th1 = 0.5D0 *(int1e(2,1) - int1e(2,4))
+        U1  = int1e(3,3) 
+        V1  = int1e(4,3)
+        Tv2 = 0.25D0*(int1e(1,1) - 2.0D0*int1e(1,3) + int1e(1,4))
+        Th2 = 0.25D0*(int1e(2,1) - 2.0D0*int1e(2,3) + int1e(2,4))
+        U2  = int1e(3,2) - int1e(3,3)
+        V2  = int1e(4,2) - int1e(4,3)
+
+c Write to output file and screen
+
+        write (10,1000) nu, SST(iSST), SSS(iSSS), U10, 
+     &                 ustar*100, theta(itheta), Tvn, Thn,
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+
+        write(*,*) '-- No Atmosphere & With Foam '
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+     &                 theta(itheta), Tvn, Thn,
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+
+c ------- WITH ATMO & NO FOAM  ----------
+
+        Tv0 = 0.25D0*(int1A(1,1)+2.0D0*int1A(1,3)+int1A(1,4))+AtmoU
+        Th0 = 0.25D0*(int1A(2,1)+2.0D0*int1A(2,3)+int1A(2,4))+AtmoU
+        Tv1 = 0.5D0 *(int1A(1,1) - int1A(1,4)) 
+        Th1 = 0.5D0 *(int1A(2,1) - int1A(2,4))
+        U1  = int1A(3,3) 
+        V1  = int1A(4,3)
+        Tv2 = 0.25D0*(int1A(1,1)-2.0D0*int1A(1,3)+int1A(1,4))
+        Th2 = 0.25D0*(int1A(2,1)-2.0D0*int1A(2,3)+int1A(2,4))
+        U2  = int1A(3,2) - int1A(3,3)
+        V2  = int1A(4,2) - int1A(4,3)
+
+c Write to output file and screen
+
+        write (25,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+     &                  theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
+     &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
+     &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
+     &                  Sc*Sc, Fr-Fr
+
+        write(*,*) '-- With Atmosphere & No Foam'
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
+     &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
+     &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
+     &                 Sc*Sc, Fr-Fr
+
+c ------- WITH ATMO & WITH FOAM  ----------
+
+        Tv0 = 0.25D0*(int1eA(1,1)+ 2.0D0*int1eA(1,3)+int1eA(1,4))+AtmoU
+        Th0 = 0.25D0*(int1eA(2,1)+ 2.0D0*int1eA(2,3)+int1eA(2,4))+AtmoU
+        Tv1 = 0.5D0 *(int1eA(1,1) - int1eA(1,4)) 
+        Th1 = 0.5D0 *(int1eA(2,1) - int1eA(2,4))
+        U1  = int1eA(3,3) 
+        V1  = int1eA(4,3)
+        Tv2 = 0.25D0*(int1eA(1,1) - 2.0D0*int1eA(1,3) + int1eA(1,4))
+        Th2 = 0.25D0*(int1eA(2,1) - 2.0D0*int1eA(2,3) + int1eA(2,4))
+        U2  = int1eA(3,2) - int1eA(3,3)
+        V2  = int1eA(4,2) - int1eA(4,3)
+
+c Write to output file and screen
+
+        write (15,1000) nu, SST(iSST), SSS(iSSS), U10, 
+     &                 ustar*100, theta(itheta), Tvn, Thn,
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+
+        write(*,*) '-- With Atmosphere & With Foam '
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+     &                 theta(itheta), Tvn, Thn,
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+
 
 
  
