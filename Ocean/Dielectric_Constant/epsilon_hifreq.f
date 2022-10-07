@@ -68,7 +68,8 @@
 ! Outputs
       double complex, intent(out) :: epsi_hifreq
 
-      character*80       :: hiresfile, header_text
+      character*300       :: hiresfile, header_text, Fort
+      
       integer            :: stat, i
       integer, parameter :: nwn = 15556
 
@@ -99,10 +100,13 @@
 ! Table columns, varying with wavenumber f_wn, are:
 !  f_wn (cm^-1), n_T0, k_T0, coef_n, coef_k, n_salt_corr, k_salt_corr
 !
-      hiresfile = 'Data/Refractive_Index/refindex_hifreq.dat'
+      call getenv('OceanMod', Fort)
+      hiresfile = Fort(1:lnblnk(Fort))//
+     &'/Data/Refractive_Index/refindex_hifreq.dat'
+      write(*,*) hiresfile
       open(unit=42, file=hiresfile, status='old',
      &     action='read', iostat=stat)
-      if (stat /= 0) stop 'Could not open file'
+      if (stat /= 0) stop 'Could not open file : '//hiresfile
 ! Skip header
       do i = 1, 25
         read (42,*) header_text
