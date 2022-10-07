@@ -807,6 +807,26 @@ c                ModSpectre = 'Power law'
                 write(*,*)
                 stop
        endif
+
+c       Issue warning if model inconsistency for foam fraction and
+c       emissivity when using Yin et al. 2016
+
+       if ((fCouvEcume.ge.6).and.(fCouvEcume.le.10).and.
+     &     (fCouvEcume.ne.(fEmisEcume + 4))) then
+
+           write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
+     &foam emissivity are inconsistent.'
+           print *,
+           write(*,*) 'The Yin et al. 2016 should use the same model com
+     &ponent for fraction and emissivity. Current selection is : '
+           write(*,*) '  Fraction = '//cCouvEcume
+           write(*,*) '  Emissivity = '//cEmisEcume
+
+           call sleep (3)
+           print *, char(7)
+
+       endif
+
         if ((cCD.eq.'y').or.(cCD.eq.'Y')) then
                 ModCD = 'Cardone (69)'
                 fCD = 1
