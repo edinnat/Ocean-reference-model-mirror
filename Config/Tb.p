@@ -68,9 +68,9 @@ d
 c-----------------------------------------------------------------------
 -                               FOAM                                   -
 c-----------------------------------------------------------------------
--- Model for Foam fraction (Monahan (86) : M1, M2 (least square), Monahan & Lu (90): M3 (active + passive),M4 (active), WISE2001 : M5)
+-- Model for Foam fraction (Monahan (86) : M1, M2 (least square); Monahan & Lu (90): M3 (active + passive), M4 (active); WISE2001 : M5; Yin et al. (2016), 5 versions: M-Du-E, M-Du-E1, M-Du-S, M-Ku-E, M-Ku-S)
 M1
--- Model for Foam emissivity (S : Stogryn 72)
+-- Model for Foam emissivity (Stogryn 72 : S; Yin et al. (2016), 5 versions: M-Du-E, M-Du-E1, M-Du-S, M-Ku-E, M-Ku-S; Anguelova et al. 2022 (multi-freq tuned): M-Du-Tune)
 M-Du-Tune
 c-----------------------------------------------------------------------
 -                           PERMITTIVITY                               -
