@@ -106,7 +106,6 @@ c Variable Declarations
         character*1  cType
         character*16 cCouvEcume
         character*16  cEmisEcume
-        character*16 nuBand
         character*1  cCD
         character*1  cAtmo
         character*1  cSwell
@@ -474,8 +473,6 @@ c------------------ READ INPUT PARAMETERS -----------------------------
         read (30,'(a)') jump_line
         read (30,'(a)') jump_line
         read (30,'(a)') jump_line
-        read (30,*) nuBand ! frequency Band for new foam model
-        read (30,'(a)') jump_line
         read (30,*) lambda
         freq = 3.D08/lambda
         nu = 3.D-01/lambda
@@ -834,8 +831,35 @@ c       emissivity when using Yin et al. 2016
            write(*,*) '  Fraction = '//cCouvEcume
            write(*,*) '  Emissivity = '//cEmisEcume
 
-           call sleep (3)
            print *, char(7)
+           call sleep (3)
+
+       endif
+
+c       Display warning if tuned foam emissivity is out of validity
+c       range in frequency
+    
+       if (fEmisEcume.eq.7) then
+
+        if (nu.lt.1.4D0) then
+
+        write(*,*) '/!\ WARNING /!\'
+        write(*,*) 'foam_emiss: frequency ',nu,' GHz is out of validity range 
+     &for tuned foam model (1.4 GHz - 89 GHz). Using 1.4 GHz model.'
+        print *, char(7)
+        call sleep(3)
+
+        endif ! if (nu.lt.1.4)
+
+        if (nu.gt.89.D0) then
+
+        write(*,*) '/!\ WARNING /!\'
+        write(*,*) 'foam_emiss: frequency ',nu,' GHz is out of validity range 
+     &for tuned foam model (1.4 GHz - 89 GHz). Using 89 GHz model.'
+        print *, char(7)
+        call sleep(3)
+
+        endif ! if (nu.gt.89)
 
        endif
 
@@ -1793,7 +1817,7 @@ c-----------------------------------------------------------------------
 
       case (7)  ! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
 
-                call foam_emiss(nuband, SSS(iSSS), SST(iSST),
+                call foam_emiss(SSS(iSSS), SST(iSST),
      &                           nu, thetal, epsi_sf)
 
       end select foamEmiss

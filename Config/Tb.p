@@ -1,8 +1,6 @@
 c-----------------------------------------------------------------------
 -                        SENSOR PARAMETERS                          -
 c-----------------------------------------------------------------------
--- Frequency band for tuning foam parameters (e.g., L, C, X, K, Ka, W)
-L
 -- Electromagnetic Wavelength (meter) [e.g. L-band = 0.2123]
 0.2123
 -- Two-scale cutoff wavenumber(s) (rad/m) [Typical is 2*pi/wavelength/N with N = 3 -> 5]
