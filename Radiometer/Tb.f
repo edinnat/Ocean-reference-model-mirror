@@ -1,39 +1,46 @@
 c-----------------------------------------------------------------------
-c          Programme principal du modele de temperature de brillance
-c          en fonction de l'etat de surface, de la SST, de la SSS,
-c          de l'angle d'incidence, de l'azimuth par rapport a la
-c          direction du vent.
-c          Modele de Yueh, 1997: Modeling if Wind Direction Signals
-c          in Polarimetric Sea Surface Brightness Temperatures, IEEE
-c          Transactions on Geoscience and Remote Sensing.
+c          Main Program for the ocean emissivity model 
+c
+c   Computes brightness temperatures Tb as a function of the celectromagnetic
+c   frequency of the sensor (f), the sea surface state (roughness and foam, 
+c   mostly parametrized as functions of wind speed at 10 meter height (U10) and
+c   wind direction), sea surface temperature (SST), sea surface salinity (SSS), 
+c   incidence angle (theta), and the azimuth angle between the sensor's 
+c   observation direction and the wind vector (phi). The emissivity model can
+c   use 3 different configurations for the interactions between the 
+c   electromagnetic waves and the surface roughness: a Geometrical Optics (GO)
+c   model valid for waves larger than the sensor¿s wavelength, a Small 
+c   Perturbation Method (SPM) for waves with small height and a two-scale model
+c   (SPM) which is commonly used for its validity over the multiple roughness 
+c   scales of the ocean surface.
+c
+c   The input parameters and model component choices are provided through a 
+c   configuration file passed as parameter when calling the program. If no 
+c   parameter is passed, the default configuration file is used from the path:
+c
+c
+c      <default_input_path>/Tb.p
+c
+c
+c   where <default_input_path> is defined by the environment variable 
+c   "inputFortran" (to be set by the user).
+c
+c   More details about the model can be found in :
+c
+c   Dinnat, E. P., Boutin, J., Caudal, G., & Etcheto, J. (2003). Issues concerning the sea emissivity modeling at L band for retrieving surface salinity. Radio Science, 38(4). https://doi.org/10.1029/2002RS002637
+c
+c   Dinnat, E. P. (2003). De la détermination de la salinité de surface des océans à partir de mesures radiométriques hyperfréquence en bande L,  Université Pierre et Marie Curie - Paris VI. https://tel.archives-ouvertes.fr/tel-00003277
+c
+c   Yueh, S. H. (1997). Modeling of wind direction signals in polarimetric sea surface brightness temperatures. IEEE Transactions on Geoscience and Remote Sensing, 35(6), 1400¿1418. https://doi.org/10.1109/36.649793
+c
 c-----------------------------------------------------------------------
 
-c-----------------------------------------------------------------------
-c   * Uz est la valeur du vent(m/s) connue a l'altitude z(metres).
-c   * phi et theta sont l'azimuth/direction du vent et l'angle 
-c   * d'incidence (degrés)
-c   * SSS est la salinite en PSU
-c   * SST est la temperature de surface en degres Centigrades
-c   * ustar est le stress du vent
-c-----------------------------------------------------------------------
+        implicit none
 
-c-------------------------------------------------------------------------------------
-c   Modifications as of 10 Nov 2021 
-c    by Magdalena Anguelova, NRL, Washington, DC, USA
-C	* Frequency band (nuBand = L,C,X,K,Ka,W) is input from the config file Tb.p (Line 461)
-c	* Introduce case 7 for foam emissivity tuned for foam parameters (line 1757)
-c	* Call to subroutine for tuned foam emissivity (line 1759)
-c	* Stability parameter for foam coverage M1 (Monahan, 1986, eq.5) with minus sign "-" (Line 1278)
-c		as atm. stability from the config file Tb.p is Tair-Twater
-c	* Added foam + atmopshere calculations (only foam without atmopshere in the original) (Lines 2082-2104)
-c-------------------------------------------------------------------------------------
+c Global variables used in other routines
 
-
-       	implicit none
-
-c Passage des parmaètres communs
         common /s/       s
-       	common /c/       c
+        common /c/       c
         common /g/       g
         common /kc/      kc
         common /ustar/   ustar
@@ -42,16 +49,16 @@ c Passage des parmaètres communs
         common /B_/      B_
         common /k0/      k0
         common /kd/      kd
-       	common /phi_1/   phi_1
+        common /phi_1/   phi_1
         common /krho1/   krho1
-       	common /theta_1/ theta_1
+        common /theta_1/ theta_1
         common /cos1/    cos1
         common /sin1/    sin1
         common /h/       h
-       	common /Uz/      Uz
+        common /Uz/      Uz 
         common /alt/     alt
         common /PI2/     PI2
-       	common /epsi/    epsi
+        common /epsi/    epsi
         common /epsi_/   epsi_
         common /C1/      C1
         common /D1/      D1
@@ -65,24 +72,28 @@ c Passage des parmaètres communs
         common /paramLem/ paramLem
         common /paramKudryavtsev/ paramKudryavtsev
         common /filtersKudry/ filtersKudry
-c Définition des fonction externes        
-       	external funcUstar_y
-       	external funcUstar_c
+
+c External Functions Declaration
+
+        external funcUstar_y
+        external funcUstar_c
         external fkinf
         external fksup
-     	external dcosd
-     	external dsind
-     	external dtand
-     	external dacosd
-     	external dasind
-     	external epsilon_KS
-     	external epsilon_El
-     	external func2D1
-c Déclaration des variables 
-        character*80 fout1 ! fichier de sortie avec ecume
-        character*80 fout2 ! fichier de sortie sans ecume
-        character*80 fin1  ! fichier d'entrée des parametres
-        character*80 pathout ! chemin pour les fichiers de sortie
+        external dcosd
+        external dsind
+        external dtand
+        external dacosd
+        external dasind
+        external epsilon_KS
+        external epsilon_El
+        external func2D1
+
+c Variable Declarations
+
+        character*80 fout1 ! Output data file (includes foam simulation)
+        character*80 fout2 ! Output data file (without foam simulation)
+        character*80 fin1  ! Input data file (geophysical and instrumental parameters, model choices)
+        character*80 pathout ! Path for saving output files
         character*80 KudryFilter1 ! filename of lookup table for Kudryavtsev filter function 1
         character*80 KudryFilter2 ! filename of lookup table for Kudryavtsev filter function 2
         character*80 KudryFilter3 ! filename of lookup table for Kudryavtsev filter function 3
@@ -96,8 +107,8 @@ c Déclaration des variables
         character*16  cEmisEcume
         character*16 nuBand
         character*1  cCD
-     	character*1  cAtmo
-     	character*1  cSwell
+        character*1  cAtmo
+        character*1  cSwell
         character*80 jump_line
         character*40 Modepsi
         character*40 ModVarPente
@@ -108,7 +119,7 @@ c Déclaration des variables
         character*40 ModCD
         character*10 date
         character*8 time
-	
+   
         double precision paramLem(10)
         double precision ss, Pi, beta
         double precision kmin
@@ -119,23 +130,23 @@ c Déclaration des variables
         double precision dtand
         double precision dacosd
         double precision dasind
-        double precision Wind(1:100)
+        double precision Wind(1:100)   ! Imput wind speeds (m/s)
         double precision Windmin
         double precision Windmax
         double precision phi1
         double precision phi2
-       	double precision theta(1:100)
+        double precision theta(1:100)  ! Input incidence angles (degrees)
         double precision thetamin
         double precision theta_max
-        double precision SSS(1:100)
+        double precision SSS(1:100)    ! Input salinities (psu)
         double precision SSSmin
         double precision SSSmax
-        double precision SST(1:100)
+        double precision SST(1:100)    ! Input temperatures (degree centigrade)
         double precision SSTmin
         double precision SSTmax
         double precision nu
         double precision Tw
-        double precision kdtab(1:100)
+        double precision kdtab(1:100)  ! Input cutoff wavenumbers for 2-scale model
         double precision kd
         double precision kdmin
         double precision kdmax
@@ -143,25 +154,25 @@ c Déclaration des variables
         double precision k02
         double precision lambda
         double precision lambdad
-        double precision phi
+        double precision phi          ! Azimuth angle of the wind vector relative to the observation vector
         double precision theta_1
         double precision theta_1min
         double precision thetaAtmo
         double precision cos1
         double precision sin1
-       	double precision cophi1
+        double precision cophi1
         double precision siphi1
         double precision h
-      double precision paramKudryavtsev(10)
-      double precision filtersKudry(1:3,1:50003)
-       	double precision phi_1
-       	double precision freq
-     	double precision Ir (0:2,1:4)
-     	double precision dIr(1:4)
-     	double precision Irh (0:2,1:4,0:180)
-     	double precision dIrh(1:4)
+        double precision paramKudryavtsev(10)
+        double precision filtersKudry(1:3,1:50003)
+        double precision phi_1
+        double precision freq
+        double precision Ir (0:2,1:4)
+        double precision dIr(1:4)
+        double precision Irh (0:2,1:4,0:180)
+        double precision dIrh(1:4)
         double precision PI2
-     	double precision B_
+        double precision B_
         double precision g
         double precision s
         double precision R
@@ -173,13 +184,13 @@ c Déclaration des variables
         double precision kinf
         double precision ksup
         double precision kmid
-        double precision ustar
+        double precision ustar        ! wind stress
         double precision ustar_y
         double precision ustar_c
         double precision ustar_don
         double precision ustar_kudry
-        double precision Uz
-        double precision alt
+        double precision Uz           ! Wind speed at altitude 'alt'
+        double precision alt          ! Altitude for wind speed 'Uz'
         double precision U19
         double precision U12
         double precision U10
@@ -232,18 +243,18 @@ c Déclaration des variables
         double precision Is(1:4) 
         double precision Is_GO(1:4) 
         double precision Is_e(1:4) 
-        double precision IsA(1:4)  ! Is avec atmosphere 
-        double precision Is_eA(1:4) ! Is_e avec atmosphere 
+        double precision IsA(1:4)  ! Scattered vector with atmosphere no foam (global reference frame)
+        double precision Is_eA(1:4) ! Scattered vector Is_e with atmosphere and foam (global reference frame)
         double precision Isl(1:4) 
         double precision Isl_GO(1:4) 
         double precision Isl_e(1:2) 
-        double precision IslA(1:4)  ! Isl avec atmosphere
-        double precision Isl_eA(1:2) ! Isl_e avec atmosphere 
+        double precision IslA(1:4)  ! Scattered vector with atmosphere no foam (local reference frame)
+        double precision Isl_eA(1:2) ! Scattered vector Is_e with atmosphere and foam (local reference frame) 
         double precision int1(1:4,1:4)
         double precision int1_GO(1:4,1:4)
         double precision int1e(1:4,1:4)
-        double precision int1A(1:4,1:4) ! int1 avec atmosphere
-        double precision int1eA(1:4,1:4) ! int1e avec atmosphere
+        double precision int1A(1:4,1:4) ! int1 with atmosphere
+        double precision int1eA(1:4,1:4) ! int1e with atmosphere
         double precision cosalpha
         double precision sinalpha 
         double precision P_Sx_Sy
@@ -273,7 +284,7 @@ c Déclaration des variables
         double precision Th2_GO
         double precision T32_GO 
         double precision T42_GO
-         double precision Tv0_SPM
+        double precision Tv0_SPM
         double precision Th0_SPM
         double precision T30_SPM
         double precision T40_SPM
@@ -283,13 +294,13 @@ c Déclaration des variables
         double precision T42_SPM
         double precision Tvn
         double precision Thn
-     	double precision Rveff
-     	double precision Rheff
+        double precision Rveff
+        double precision Rheff
         double precision xVar
-        double precision VarSwell(1:2) ! variances des pentes de la houle en x et y
-        double precision hSwell ! rms des hauteurs de la houle
-        double precision sigSwell(1:2) ! largeur à mi-puissance de la densite spectrale de la houle en x et y
-        double precision KMaxSwell(1:2) ! pics de la densite spectrale de la houle en x et y
+        double precision VarSwell(1:2) ! Slope variances of swell in x and y directions
+        double precision hSwell ! rms height of swell
+        double precision sigSwell(1:2) ! Half power width of swell PDF in x and y directions
+        double precision KMaxSwell(1:2) ! wavenumber peaks in Swell pdf in x and y directions
         double precision temp
         double precision temp1
         double precision temp2
@@ -297,25 +308,20 @@ c Déclaration des variables
         double precision temp4
         double precision Omega
         
-       	double complex epsi_KS
-       	double complex epsi_El
-       	double complex epsi_MW
-       	double complex epsi_hifreq
-       	double complex epsi
-       	double complex epsi_
+        double complex epsi_KS
+        double complex epsi_El
+        double complex epsi_MW
+        double complex epsi_hifreq
+        double complex epsi
+        double complex epsi_
         double complex C1
-     	double complex D1
+        double complex D1
         double complex D2
         double complex Rvv0
         double complex Rhh0
-       	
+        
         integer i 
         integer iWind
-! TO BE REMOVED !!! (use for continuation of computations)
-        integer iSSS0
-        integer iSST0
-        integer iWind0
-        integer itheta0
         integer nWind
         integer iphi
         integer j 
@@ -330,7 +336,7 @@ c Déclaration des variables
         integer Nstab
         integer nkd
         integer iSST 
-       	integer iSSS 
+        integer iSSS 
         integer iStab
         integer itheta
         integer ikd
@@ -355,32 +361,27 @@ c Déclaration des variables
         integer nsorties
         integer ufile
         integer sortiestab(1:2)
-        integer NSwell (1:2) ! nb de point de tabulation de la houle
+        integer NSwell (1:2) ! Number of sample to tabulate Swell PDF
         integer ikfilt ! index for Kudryavtsev filters
         
         logical fin1exist
-	
-c--Paramètres----------------------------------------------------------
-c       B_ : Amplitude du spectre de Durden Vesecky (0.004 à l'origine)
-c       g  : Accélération de la gravitation
-c       s  : Paramètre de la variation angulaire du spectre
-c       N1 : le nombre de pts d'intégration sur les pentes en Sx
-c       N2 : le nombre de pts d'intégration sur les pentes en Sy
+ 
+c--Parameters----------------------------------------------------------
+c       B_ : Amplitude for the sea spectrum of Durden & Vesecky 1985 (originally = 0.004)
+c       g  : Gravity acceleration
+c       s  : Sea Spectrum Spreading Function (i.e. azimuthal variation)
+c       N1 : Steps number for the integration over the slopes in x direction
+c       N2 : Steps number for the integration over the slopes in y direction
 c       PI2 = 2*Pi
-c       THETAmax : Valeur max des theta pour la tabulation 
-c                  de la diffusion
-c       TPHI_1 : contient les 3 angle phi pour déterminer le fondamental
-c               et la 2eme harmonique des 2 premiers parametres de 
-c               Stokes (à 0 et 90°) et la 2eme harmonique des 3eme et
-c               4eme parametres de Stokes (à 45°)
-c       TPHI   : contient les 4 angle phi pour déterminer les 3 
-c               coefficients de la decompostion en serie de fourier 
-c               paire pour les 2 premiers parametres de Stokes (0, 90
-c               et 180 °) et en serie impaire pour les 2 derniers 
-c               parametres de Stokes(45 et 90°)
+c       THETAmax : Max value for incidence angle theta to tabulate small
+c                   scale scattering.
+c       TPHI_1 : Holds 3 sampling phi angles to compute harmonics 0 and 2 for Stokes parameters
+c                in from small scale scattering frame  (no 1st harmonic here). 
+c       TPHI   : Holds 4 sampling phi angles to compute harmonics 0, 1 and 2 for Stokes parameters.
+c                                  
 
-       	data g/9.81D0/
-       	data s/1.5D-04/
+        data g/9.81D0/
+        data s/1.5D-04/
 c        PI2=2.0D0*acos(-1.0D0)
         PI2=2.0D0*3.141592653589793238462643383279D0
         TPHI_1(0) = 0.0D0
@@ -397,6 +398,7 @@ c        PI2=2.0D0*acos(-1.0D0)
                 enddo
             enddo
         enddo
+
 c----------- Process Time and Date of Program Execution -----------        
         call date_and_time(date, time)
         date = date(7:8)//'_'//date(5:6)//'_'//date(1:4)
@@ -407,6 +409,7 @@ c Lookup table for Kudryavtsev filters
         KudryFilter1 = 'Data/Kudryavtsev_Spectrum/filterF.dat'
         KudryFilter2 = 'Data/Kudryavtsev_Spectrum/filterFres.dat' 
         KudryFilter3 = 'Data/Kudryavtsev_Spectrum/filterPhi.dat'  
+
 c Identify file of input parameters
         call getarg (1, fin1)                   ! get 1st parameter
                                                 ! passed to function
@@ -430,8 +433,10 @@ c Identify file of input parameters
             print*, fin1 
           endif
         endif
+
 c Open file of input parameters        
         open (unit=30, file=fin1, status='old', err=60)
+
 c Identify path of output files (data output file is read in the input
 c file)       
         call getenv ('outputFortran', pathOut)
@@ -442,12 +447,15 @@ c file)
             stop
         endif
         pathout = pathout(1:lnblnk(pathout))//'/'
+
 c Open output file for small scale reflectivity
         open (unit=60, file=pathout(1:lnblnk(pathout))//"Diffusion.dat"
      &,status='unknown',err=70)
+
 c Open output file for Tb Atmo
         open (unit=40, file=pathout(1:lnblnk(pathout))//"TbAtmo.dat"
      &,status='unknown',err=70)
+
 c Open file for program execution report (i.e. log file !)
       logFile = pathout(1:lnblnk(pathout))//"Tb_"//date//"_"//time//
      &".log"
@@ -455,45 +463,46 @@ c Open file for program execution report (i.e. log file !)
 
 c----------------------------------------------------------------------
 c------------------ READ INPUT PARAMETERS -----------------------------
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-    	read (30,*) nuBand					! frequency Band
-     	read (30,'(a)') jump_line
-     	read (30,*) lambda
-       	freq = 3.D08/lambda
-       	nu = 3.D-01/lambda
-       	k0 = 2.D0*3.141592653D0/lambda 
+
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,*) nuBand ! frequency Band for new foam model
+        read (30,'(a)') jump_line
+        read (30,*) lambda
+        freq = 3.D08/lambda
+        nu = 3.D-01/lambda
+        k0 = 2.D0*3.141592653D0/lambda 
         call readvec(kdtab, 30, nkd)
         call extr_val(kdtab, nkd, kdmin, kdmax)
         call readvec(theta, 30, ntheta)
         call extr_val(theta, ntheta, thetamin, theta_max)
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         call readvec(Wind, 30, nWind)
         call extr_val(Wind, nWind, Windmin, Windmax)
-     	read (30,'(a)') jump_line
-       	read (30,*) alt
-     	read (30,'(a)') jump_line
-        read (30,*) cCD               ! cCD mod. coefficient trainee
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,*) alt
+        read (30,'(a)') jump_line
+        read (30,*) cCD               ! cCD mod. drag coefficient
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         call readvec(SST, 30, nSST)
         call extr_val(SST, nSST, SSTmin, SSTmax)
         call readvec(SSS, 30, nSSS)
         call extr_val(SSS, nSSS, SSSmin, SSSmax)
         call readvec(Stab, 30, nStab)
         call extr_val(Stab, nStab, Stabmin, Stabmax)
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') fout1
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') fout2
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') fout1
+        read (30,'(a)') jump_line
+        read (30,'(a)') fout2
         nsorties = 0
         if ((fout1.eq.'aucun').or.(fout1.eq.'none')) then ! test on 'aucun' kept for legacy
                 print *, ' * No output file with foam selected.'
@@ -505,9 +514,6 @@ c------------------ READ INPUT PARAMETERS -----------------------------
                 else
                    open (unit=20,file=pathout(1:lnblnk(pathout))//fout2
      &,status='unknown')
-! TO BE REMOVED !!! (use for continuation of computations)
-!                   open (unit=20,file=pathout(1:lnblnk(pathout))//fout2
-!     &,status='unknown', access='append')
                    open (unit=25,file=pathout(1:lnblnk(pathout))//"Atm_"
      &//fout2,status='unknown')
                         nsorties = 1
@@ -541,45 +547,45 @@ c------------------ READ INPUT PARAMETERS -----------------------------
                 endif
         endif
 
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,'(a)') cVar
-     	read (30,'(a)') jump_line     ! B_ Amplitude du spectre DV
+        read (30,'(a)') jump_line     ! B_ Amplitude of sea spectrum DV1985
         read (30,*) B_
-     	read (30,'(a)') jump_line
-        read (30,*) cSpectre          ! cSpectre mod. de spectre
-     	read (30,'(a)') jump_line
-        read (30,*) Omega          ! Inverse de l'age des vagues
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line     ! cCouvEcume mod. couverture ecume
+        read (30,'(a)') jump_line
+        read (30,*) cSpectre          ! cSpectre choice specturm model 
+        read (30,'(a)') jump_line
+        read (30,*) Omega          ! Inverse wave age
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line     ! cCouvEcume choice model foam coverage
         read (30,*) cCouvEcume
-     	read (30,'(a)') jump_line
-        read (30,*) cEmisEcume        ! cEmisEcume mod. emissiv. ecume  
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-        read (30,*) cepsi             ! cepsi mod. permitivite
-     	read (30,'(a)') jump_line
-        read (30,*) csigneeps         ! csigneeps Signe Im(permitivite)
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,*) cEmisEcume        ! cEmisEcume choice model foam emissivity   
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,*) cepsi             ! cepsi choice model sea water dielectric constamt
+        read (30,'(a)') jump_line
+        read (30,*) csigneeps         ! csigneeps Signe Im(permitivity)
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) cSwell
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) NSwell(1)
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) NSwell(2)
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) hSwell
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) sigSwell(1)
-     	read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
         read (30,*) sigSwell(2)
      	read (30,'(a)') jump_line
         read (30,*) KMaxSwell(1)
@@ -603,18 +609,18 @@ c------------------ READ INPUT PARAMETERS -----------------------------
         read (30,*) lambdamax
      	read (30,'(a)') jump_line     ! niVar
         read (30,*) niVar
-        read (30,'(a)') jump_line     ! cType Type de Modele 
+        read (30,'(a)') jump_line     ! cType Type of emissivity Model 
         read (30,*) cType
      	read (30,'(a)') jump_line
-        read (30,*) N1                ! Nb integration sur Sx
+        read (30,*) N1                ! Number of integration steps on slopes Sx
      	read (30,'(a)') jump_line
-        read (30,*) N2                ! Nb integration sur Sy
+        read (30,*) N2                ! Number of integration steps on slopes Sy
      	read (30,'(a)') jump_line
-        read (30,*) xVar              ! Limite integration sur pentes (xVar x Variance)
+        read (30,*) xVar              ! Limit for integration on slopes (xVar x Variance)
         
 
 
-c----------- VERIFICATION DES PARAMETRES D'ENTRÉE ----------------------
+c----------- Check validity of input parameters ----------------------
 
         if (int(THETAmax/DTHETAtab).ne.(THETAmax/DTHETAtab)) then
                 write (*,*)
@@ -789,9 +795,9 @@ c                ModSpectre = 'Power law'
         elseif ((cEmisEcume.eq.'M-Ku-S')) then
                 ModEmisEcume = 'Yin et al. 2016 - M-Ku-S'
                 fEmisEcume = 6
-	elseif ((cEmisEcume.eq.'M-Du-Tune')) then
+        elseif ((cEmisEcume.eq.'M-Du-Tune')) then
                 ModEmisEcume = 'Yin et al. 2016 - M-Du-Tune'
-                fEmisEcume = 7	
+                fEmisEcume = 7
         else
                 write(*,*)
                 print *,'Invalid choice for foam emissivity model.'//
@@ -808,7 +814,7 @@ c                ModSpectre = 'Power law'
                 stop
        endif
 
-c       Issue warning if model inconsistency for foam fraction and
+c       Display warning if model inconsistency for foam fraction and
 c       emissivity when using Yin et al. 2016
 
        if ((fCouvEcume.ge.6).and.(fCouvEcume.le.10).and.
@@ -862,7 +868,8 @@ c       emissivity when using Yin et al. 2016
                 stop
         endif
 
-c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
+c---------------- WRITE INPUT VARIABLES IN OUTPUT FILES --------------
+
         if (nsorties.ge.1) then
 
         do i = 1, nsorties
@@ -931,9 +938,9 @@ c---------------- AFFICHAGE DES VARIABLES DANS LE FICHIER --------------
         endif ! if (nsorties.ge.1)
         
 c---------------------------------------------------------------------
-c------------------ PROGRAMME PRINCIPAL ------------------------------
+c------------------ MAIN PROGRAM        ------------------------------
 
-c  Calcul des Variance de pentes de la houle
+c  Compute Swell Slope Variances
 
         write(50,*) 'Computation of slope variances for swell ...'
         if (fSwell.eq.1) then
@@ -947,37 +954,27 @@ c  Calcul des Variance de pentes de la houle
         write (50,*) 'SuSwell = ', sqrt(VarSwell(1))
         write (50,*) 'ScSwell = ', sqrt(VarSwell(2))
 
-c Début Boucle sur SSS
+c START loop on SSS values
 
-! TO BE REMOVED !!! (use for continuation of computations)
-!      iSSS0 = 4
-!      iSST0 = 3
-!      iWind0 = 1
-!      iTheta0 = 13
-      iSSS0 = 1
-      iSST0 = 1
-      iWind0 = 1
-      iTheta0 = 1
-        do iSSS=iSSS0, nSSS
-       	   
-c Début Boucle sur SST
+        do iSSS=1, nSSS
 
-       	do iSST = iSST0, nSST
-       	   
-       	   Tw = 2.7315D2 + SST(iSST)
+c START loop on SST values
+
+        do iSST = 1, nSST
+           
+           Tw = 2.7315D2 + SST(iSST) ! convert temperature from degC to K
            
 c----------------------------------------------------------------------
-c                       CONSTANTE DIELECTRIQUE : epsi
+c                       SEA WATER DIELECTIC CONSTANT : epsi
 c
-c epsi : constante dielectrique complexe relative à epsilon 0 
-c        (ie permitivité du vide)
-c       epsi_KS pour Klein & Swift 
-c       epsi_El pour Ellison
-c       epsi_MW pour Meissner and Wentz 
+c epsi : relative dielectic constant (wrt to epsilon_0, permitivity for vaccum)
+c       epsi_KS for Klein & Swift (1977) model
+c       epsi_El for Ellison et al. (1998) model
+c       epsi_MW for Meissner et al. (2004, 2012) model
 c       espi_hifreq [high frequency dataset]
-c SST  : Temperature de surface de l'ocean en °C
-c SSS  : Salinité de surface de l'ocean en ppm
-c freq : Frequence electromagnetique du radiometre en Hz
+c SST  : Sea Surface Temperature degC
+c SSS  : Sea Surface Salinty (psu)
+c freq : Sensor's electromagnetic frequency (Hz)
         
         write (50,*) 'Computation of the sea water dielectric'//
      &               ' constant ...'
@@ -1027,35 +1024,30 @@ c freq : Frequence electromagnetique du radiometre en Hz
                 stop
         endif
 
-        !epsi = (1.0D0, -1.0D16)
         write (50,*) '   ... Done.'
         write (50,*) '  Klein & Swift = ', epsi_KS
         write (50,*) '  Ellison       = ', epsi_El
         write (50,*) '  Meissner et al. = ', epsi_MW
         write (50,*) '  Selected model    =>       ',epsi
 
-c Tabulation des Tb Atmosphérique en fonction de l'angle d'incidence 
-c theta (theta de 0 à 90° par pas de 1°)
+c Tabulate Atmospheric Tb as a function of incidence angle 
+c theta (theta from 0 to 90 degrees in 1 degree steps)
         
         nParam = 8
-        Param(1) = 6370.0D0 ! rayon terrestre (km)
-        Param(2) = 1013.0D0 ! pression atmosphérique au sol (mb)
-        Param(3) = SST(iSST) + 273.15D0  ! Température au sol (K)
-        Param(4) = 70.0D0  ! Humidité relative (%)
-        Param(5) = freq  ! fréquence (Hz)
-        Param(6) = 20.0D0  ! altitude maximum de l'atmosphère (km)
-        Param(7) = 400  ! nb de couches d'atmosphere
-        Param(8) = 6.5D0  ! module gradient de temperature (K/km)
+        Param(1) = 6370.0D0 ! Approximate Earth radius (km)
+        Param(2) = 1013.0D0 ! Ground atmospheric pressure (mb)
+        Param(3) = SST(iSST) + 273.15D0  ! Ground atmospheric temperature (K)
+        Param(4) = 70.0D0  ! relative humidity (constant vertically) (%)
+        Param(5) = freq  ! frequency (Hz)
+        Param(6) = 20.0D0  ! Max atmospheric altitude (km)
+        Param(7) = 400  ! number of atmospheric layers
+        Param(8) = 6.5D0  ! temperature gradient (absolute value) (K/km)
         write (50,*) 'Tabulation of atmospheric brightness tem'//
      &'peratures ...'
         call TbAtmo(Param, nParam, TbAd, TbAu, tau) 
-        ! TbAd Tb atmosphere vers le bas (downward)
-        ! TbAu Tb atmosphere vers le haut (upward)
-c        do i = 0, 90
-c                tau(i) = 0.0D0
-c                TbAd(i) = 0.0D0
-c                TbAu(i) = 0.0D0
-c        enddo
+        ! TbAd Tb atmospheric Tb Downward
+        ! TbAu Tb atmospheric Tb Upward
+
 c	Write Header for TbAtmo file
         write (40,*) 'P(0,mb), T(0,K) Hr(0,%), freq (Hz), grad(K/km), the
      &ta (deg), TbUp(k), TbDown(K), tau(neper)' 
@@ -1065,48 +1057,57 @@ c	Write Header for TbAtmo file
         write(*,*) '----------   Atmo Tb Lookup Table  ----------------'
         write(*,*) '  incidence  Tb Up (K)  Tb down (K)    attenuation'
         write(*,*) '---------------------------------------------------'
-	do i = 0, 90
+        
+      do i = 0, 90
+
         write (*,'(5x,f4.1,5x,f7.3,5x,f7.3,9x,f7.5)') i*1.0D0, TbAu(i),
      &        TbAd(i), tau(i)
         write (40,'(1x,f7.2,1x,f6.2,1x,f5.2,1x,e11.4,1x,f5.2,3(1x,f5.2),
      &e11.4)')
      &  Param(2), Param(3),  Param(4),Param(5),Param(8),
      &   i*1.0D0, TbAu(i), TbAd(i), tau(i)
-	enddo
+      
+      enddo
+
         write(*,*) '---------------------------------------------------'
         close (40) ! close Tb Atmo file
         write (50,*) ' ... Done.'
 
-
 c----------------------------------------------------------------------
-c Début Boucle sur Vent
+c        
+c               START of loop on Wind Speeds
+c
+c----------------------------------------------------------------------
 
 
-       	do iWind= iWind0, nWind
+        do iWind = 1, nWind
                 Uz = Wind(iWind)
  
 c----------------------------------------------------------------------
-c                            STRESS : ustar
+c                            WIND STRESS : ustar
 c
-c ustar est borne entre arg#1 et arg#2 et on impose une precision 
-c de arg#3 sur le calcul de la racine. 
-c
-c Uz : Module du vent en m/s
-c z  : Altitude pour le module du vent en metres
-c ustar_c calculé avec Z0 Charnock 55
-c ustar_y calculé avec Z0 Yueh 97
-c ustar_don calculé avec Z0 Donelan 93(inclue le Fetch)
+c Uz  : Wind speed in m/s
+c alt : Altitude for wind speed (m)
+c ustar_c computed with Z0 Charnock 55
+c ustar_y computed with Z0 Yueh 97
+c ustar_don computed with Z0 Donelan 93(includes Fetch)
 
          write (50,*) 'Computation of wind stress for wind speed U(',alt
      &       ,') = ', Uz
-      	if (Uz.ne.0.) then
+        if (Uz.ne.0.) then
+                
+                ! ustar is computed using 'root' between param#1 et param#2 
+                ! with a convergence target of param#3 (assumed
+                ! accuracy)
+
                 call root (1.D-05, 1.5D1, 1.D-06,funcUstar_y, ustar_y)
                 call root (1.D-05, 1.5D1, 1.D-06,funcUstar_c, ustar_c)
+
        ustar_don = 0.4D0*Uz/dlog(alt/(3.7D-05*(Uz**2/g)
      &         *Omega**0.9D0));
-       	else
+        else
                 ustar = 0.D0
-       	endif
+        endif
         if (fCD.eq.1) then
                 ustar = ustar_y
         elseif (fCD.eq.2) then
@@ -1130,20 +1131,20 @@ c ustar_don calculé avec Z0 Donelan 93(inclue le Fetch)
 
 c       	write (10,*)
 c        write (10,*) '________________________________________'
-c        write (10,*) '       PARAMETRES VENT ET STRESS        '
+c        write (10,*) '       PARAMETERS WIND AND STRESS        '
 c       	write (10,*)
 c	write (10,*) " ---> U*(Yueh)     = ",  (ustar)
 c	write (10,*) " ---> U*(Charnock) = ",  (ustar_c)
 
 c----------------------------------------------------------------------
-c               CONVERSION DU VENT A 10, 12.5 ET 19.5 METRES
+c        CONVERT WIND SPEED FROM GIVEN ALT TO 10, 12.5 ET 19.5 METERS HEIGHTS
 c
-c  Uz    : Module du vent en m/s
-c  z     : Altitude pour le module du vent en metres
-c  ustar : Stress du vent en m
-c  U19   : Module du vent en m/s pour une hauteur de 19.5m
-c  U12   : Module du vent en m/s pour une hauteur de 12.5m
-c  U10   : Module du vent en m/s pour une hauteur de 10.0m
+c  Uz    : Wind speed in m/s
+c  alt   : Altitude for wind speed (m)
+c  ustar : Wind Stress (m)
+c  U19   : Wind Speed in m/s at an altitude of 19.5m
+c  U12   : Wind Speed in m/s at an altitude of 12.5m
+c  U10   : Wind Speed in m/s at an altitude of 10.0m
 
          write (50,*) 'Conversion of wind speed at different'//
      &       '  reference heights ...'
@@ -1161,7 +1162,9 @@ c  U10   : Module du vent en m/s pour une hauteur de 10.0m
          write (50,*) '   U10 = ', U10, ' m/s'
          write (50,*) '   U12.5 = ', U12, ' m/s'
          write (50,*) '   U19.5 = ', U19, ' m/s'
-c Début boucle sur kd
+
+c START Loop on kd values (wavenumber cutoff between large and small
+c       scales)
 
         do ikd = 1, nkd
         
@@ -1170,15 +1173,15 @@ c Début boucle sur kd
         
 c----------------------------------------------------------------------
 c       PARAMETRES DU MODELE DE SPECTRE DE DURDEN & VESECKY
+c       PARAMETERS FOR THE SEA SPECTRUM MODEL DURDEN AND VESECKY (1985)
 c
 
-       	kc   = g/U19/U19
+        kc   = g/U19/U19
         kmid = sqrt(1.48D0/3.0D0)*kc
-       	b0   = B_*dexp(1.85D-01*kc*kc)
+        b0   = B_*dexp(1.85D-01*kc*kc)
         write (50,*) 'Computation of lower boundary wavenumber for sea s
      &pectrum ...'
         call root (1.0D-04, 2.0D0, 1.D-06,fkinf, kinf)
-!        kinf = 1.0D-03 
         write (50,*) '   ... Done.'
         write (50,*) '   kinf = ', kinf
         kd = max(kinf, kd)
@@ -1188,18 +1191,9 @@ c
         call c_ (c, U12)
         write (50,*) '   ... Done.'
         write (50,*) '   c = ',c
-!        print*, kd
-c        if (kinf.eq.1.0D04) print *, 'Changer les bornes passée à root '
-c     &          ,'pour le calcul de kinf'
-c        call root (2.0D0, 1.0D+05, 1.D-06,fksup, ksup)
-c        if (ksup.eq.1.0D04) print *, 'Changer les bornes passée à root '
-c     &          ,'pour le calcul de ksup'
-c        print *, 'kinf = ', kinf, '  S_DV(kinf)/kinf', S_DV(kinf)/kinf
-c        print *, 'ksup = ', ksup, '  S_DV(ksup)', S_DV(ksup)
-
         
 c----------------------------------------------------------------------
-c       PARAMETRES DU MODELE DE LEMAIRE ET AL.
+c       PARAMETERS FOR THE SEA SPECTRUM MODEL OF DE LEMAIRE ET AL.
 c
 
       ss = 0.007  
@@ -1215,7 +1209,7 @@ c params
       paramLem(7) = ustar
 
 c----------------------------------------------------------------------
-c       PARAMETRES DU MODELE DE Kudryavtsev ET AL.
+c       PARAMETERS FOR THE SEA SPECTRUM MODEL OF Kudryavtsev ET AL.
 c
 
 ! compute ustar
@@ -1250,12 +1244,12 @@ c
       close(13)
         
 c----------------------------------------------------------------------
-c               VARIANCES DES PENTES DU SPECTRE
+c               WIND SEA SLOPE VARIANCE FROM SEA SPECTRUM 
 c
-c  Su : Variances des pentes en direction "upwind"
-c  Sc : Variances des pentes en direction "downwind"
-c  kd : Nombre d'onde de coupure en rad/m
-c  cspec : modele de spectre
+c  Su : Slope variance in upwind direction
+c  Sc : Slope variance in crosswind direction
+c  kd : Cutoff Wavenumber (rad/m)
+c  cspec : choice of model for sea spectrum
 
         write (50,*) 'Computation of slope variances ...'
         if (fVar.eq.1) then
@@ -1290,11 +1284,11 @@ c  cspec : modele de spectre
         write (50,*) '   Sc = ', Sc
 
 c----------------------------------------------------------------------
-c               VARIANCES DES HAUTEURS DU SPECTRE DES PETITE VAGUES
+c               HEIGHT VARIANCE OF SMALL SCALE ROUGHNESS
 c
-c  sigma : Variances des hauteurs des petites échelles
-c  kd : Nombre d'onde de coupure en rad/m
-c  cspec : modele de spectre
+c  sigma : Height Variance of small scales (m^2)
+c  kd : Cutoff Wavenumber (rad/m)
+c  cspec : choice of model for sea spectrum
 
         write (50,*) 'Computation of height variance ...'
         call sigma_ (sigma, kd, cspec)
@@ -1302,10 +1296,11 @@ c  cspec : modele de spectre
         write (50,*) '   sigma = ', sigma
 
 c----------------------------------------------------------------------
-c                       FRACTION DE COUVERTURE D'ECUME
+c                       FOAM COVERAGE FRACTION
 c
 
-c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
+c  Foam coverage fraction with dependence on atmospheric stability
+
         write (50,*) 'Computation of foam fraction ...'
         if (fCouvEcume.eq.1) then
                 call foam (U10,-Stab(1),Fr)
@@ -1333,48 +1328,32 @@ c  Couverture d'ecume avec dependance en Stab(stabilite atmos.)
         write (50,*) '   Foam fraction = ', Fr
         close (50)
 
-c  Couverture d'ecume par methode des moindres carres
-
-c-----------------------------------------------------------------------
-c                           Lecture de tabulations de la diffusion
-c        print *, 'Lecture de la diffusion engagée ...'
-c        do iIncid = 0,THETAmax/DTHETAtab
-c          read (33,*) Irh(0, 1, iIncid)
-c     &     , Irh(0, 2, iIncid)
-c     &     , Irh(2, 1, iIncid)
-c     &     , Irh(2, 2, iIncid)
-c     &     , Irh(2, 3, iIncid)
-c     &     , Irh(2, 4, iIncid)
-c        Irh(0, 1, iIncid) = Irh(0, 1, iIncid)/288.15D0
-c        Irh(0, 2, iIncid) = Irh(0, 2, iIncid)/288.15D0
-c        Irh(2, 1, iIncid) = Irh(2, 1, iIncid)/288.15D0
-c        Irh(2, 2, iIncid) = Irh(2, 2, iIncid)/288.15D0
-c        Irh(2, 3, iIncid) = Irh(2, 3, iIncid)/288.15D0
-c        Irh(2, 4, iIncid) = Irh(2, 4, iIncid)/288.15D0
-        
-c        enddo
-c-----------------------------------------------------------------------
 c----------------------------------------------------------------------
-c                              TABULATION DIFFUSION
+c              TABULATION OF SCATTERING VECTOR
 
         if (fDiff.eq.1) then
-c   Calcul les constantes
+
+c   Compute constants
+
         k02     = k0*k0
         epsi_   = (epsi - 1.0D0)
         
-c    Tabulation de la diffusion en fonction de theta_local et phi_local
+c    Tabulate small scale scattering as a function of incidence and azimuth angles
+c       in the local reference frame of a large tilted wave: theta_l and phi_l
 c       
-c       La coefficient de reflexion dans le plan local Ir = Irc + Iri
-c       On décompose Ir en fonction de l'azimuth local phi_1 comme suit:
+c       The reflectkion coefficient vector in the local frame is Ir = Irc + Iri
+c       Ir is expressed as a function of local azimuth  phi_1 as:
+c
 c               Ir = Irh(0) + Irh(1)*cos (phi_1) + Irh(2)*cos(2*phi_1)
-c       La première harmonique étant nulle, on a détermine Irh(0) 
-c       et Irh(2) en phi_1 = 0° et phi_2 = 180°
+c
+c       The first harmonic being 0,  Irh(0) and Irh(2) are computed at phi_1 = 0 and phi_2 = 180
 
         print *, 'Tabulation of small scale scattering component started
      &...'
-c Echantillonnage en theta de 0 à THETAmax par pas de DTHETAtab
 
-c Début BOUCLE THETA_1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+c Sampling in theta_l from 0 to THETAmax using steps DTHETAtab
+
+c START Loop in theta_1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         do nTHETA_1 =  0, int ( THETAmax/DTHETAtab )
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1382,15 +1361,19 @@ c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         cos1    = dcosd(theta_1)
         sin1    = dsind(theta_1)
         krho1   = k0*sin1
-c   Calcul les constantes
+
+c   Compute Constants
         C1      = sqrt (epsi - sin1*sin1)
         D1      = cos1 + C1
         D2      = epsi*cos1 + C1
-c   Calcul les coefficient de réflexion de Fresnel
+
+c   Compute Fresnel Reflection Coefficients
         Rvv0    = (epsi*cos1-C1)/(epsi*cos1+C1)
         Rhh0    = (cos1 - C1)/(cos1+C1)
 
-c Début BOUCLE PHI_1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+c ---------------  COMPUTATION STOKES 1 ET 2  -----------------------
+
+c START Loop on phi_1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         do nPHI_1 = 0,1
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1398,7 +1381,7 @@ c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         cophi1  = dcosd(phi_1)
         siphi1  = dsind(phi_1)
 
-c      initialisation
+c      initialization
         do indice = 1,2
                 Ir(nPHI_1, indice)  = 0.0D0
                 dIr(indice) = 0.0D0
@@ -1408,13 +1391,13 @@ c      initialisation
 c        krhomax = min(1.1D0*krhomin, k0*0.999999D0)
         krhomax = k0*0.999999D0
         
-c  INTEGRALE SUR L'HEMISPHERE SUPERIEUR DE LA VAGUE
+c  INTEGRAL ON WAVE UPPER HEMISPHERE
+
         flagI = 1
         if (krhomin.lt.krhomax) then
         flagB = 1
         dowhile(flagB.eq.1)
                 call qromb2D1(func2D1, krhomin, krhomax, dIr, 1.0D-03)
-c                print*, 'fin 12'
                 do indice = 1, 2
                    Ir(nPHI_1,indice) = Ir(nPHI_1,indice)+dIr(indice)*k02
                 enddo
@@ -1426,54 +1409,46 @@ c               krhomax = min(1.1D0*krhomin, k0*0.999999D0)
         enddo
         endif
         
-c  INTEGRALE DE LA DIFFUSION SUR LES FAIBLE LONGUEURES D'ONDE
+c  INTEGRAL SCATTERING ON SMALL WAVELENGTHS
+
 
         flagI = 0
         do i = 1,30
                 krhomin = k0*1.000001D0*10.0D0**((i-1.0D0)/10.0D0)
                 krhomax = k0*10.0D0**(i/10.0D0)
                call qromb2D1(func2D1, krhomin, krhomax, dIr, 1.0D-03)
-c                print*, 'fin 12'
                 do indice = 1, 2
                    Ir(nPHI_1,indice) = Ir(nPHI_1,indice)+dIr(indice)*k02
                 enddo
         enddo
 
 
-c  Fin Boucle Phi_1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+c  END Loop on phi_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
 c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-c  Harmoniques 0 et 2 des Stokes 1 et 2
+c  Harmonics 0 and 2 for Stokes 1 and 2
 c
-c       Irh(i,indice,nTHETA_1) est l'harmonique "i", 
-c                              pour le Stokes "indice",
-c                              en theta = nTHETA_1*DTHETAtab
-c       Ir(0,indice) est la Tb pour le Stokes "indice" en phi=TPHI_1(0)
-c       Ir(1,indice) est la Tb pour le Stokes "indice" en phi=TPHI_1(1)
+c       Irh(i,indice,nTHETA_1) is harmonic "i", 
+c                              for Stokes "indice",
+c                              at theta = nTHETA_1*DTHETAtab
+c       Ir(0,indice) is Tb for the Stokes "indice" at phi=TPHI_1(0)
+c       Ir(1,indice) is Tb for the Stokes "indice" at phi=TPHI_1(1)
         
         do indice = 1, 2
                 Irh(0,indice,nTHETA_1)=0.5D0*(Ir(0,indice)+Ir(1,indice))
                 Irh(1,indice,nTHETA_1)=0.0D0
                 Irh(2,indice,nTHETA_1)=0.5D0*(Ir(0,indice)-Ir(1,indice))
         enddo
-c        write (40,*) nu, kd, SST(iSST), SSS(iSSS), U10, ustar, Omega, 
-c     &  theta_1
-c     &                 , Irh(0,1,nTHETA_1)*Tw
-c     &                 , Irh(0,2,nTHETA_1)*Tw
-c     &                 , Irh(2,1,nTHETA_1)*Tw
-c     &                 , Irh(2,2,nTHETA_1)*Tw
-c        write (*,*) theta_1, Ir(0,1)*Tw
-c     &                 , Ir(1,1)*Tw
 
-c ---------------  DEBUT CALCUL STOKES 3 ET 4  -----------------------
+c ---------------  COMPUTATION STOKES 3 ET 4  -----------------------
         
         nPHI_1  = 2
         phi_1   = TPHI_1(nPHI_1)
         cophi1  = dcosd(phi_1)
         siphi1  = dsind(phi_1)
 
-c      initialisation
+c      initialization
         do indice = 3,4
                 Ir(nPHI_1, indice)  = 0.0D0
                 dIr(indice) = 0.0D0
@@ -1483,13 +1458,13 @@ c      initialisation
         krhomax = min(1.1D0*krhomin, k0*0.999999D0)
         krhomax = k0*0.999999D0
         
-c  INTEGRALE SUR L'HEMISPHERE SUPERIEUR DE LA VAGUE
+c  INTEGRAL ON WAVE UPPER HEMISPHERE
+
         flagI = 1
         if (krhomin.lt.krhomax) then
         flagB = 1
         dowhile(flagB.eq.1)
                 call qromb2D1(func2D1, krhomin, krhomax, dIr, 1.0D-03)
-c                print*, 'fin 34'
                 do indice = 3, 4
                    Ir(nPHI_1,indice)=Ir(nPHI_1,indice)+dIr(indice-2)*k02
                 enddo
@@ -1498,10 +1473,10 @@ c                print*, 'fin 34'
 c               krhomax = min(1.1D0*krhomin, k0*0.999999D0)
         krhomax = k0*0.999999D0
 
-	enddo
-	endif
+        enddo
+        endif
         
-c  INTEGRALE DE LA DIFFUSION SUR LES FAIBLE LONGUEURES D'ONDE
+c  INTEGRAL DE LA DIFFUSION SUR LES FAIBLE LONGUEURES D'ONDE
 
         flagI = 0
         do i = 1,30
@@ -1513,15 +1488,16 @@ c                print*, 'fin 34'
                    Ir(nPHI_1,indice)=Ir(nPHI_1,indice)+dIr(indice-2)*k02
                 enddo
         enddo
-c -----------   FIN DU CALCUL STOKES 3 ET 4 -------------------------
 
-c  sortie fichier de thetal, fondamental, seconde harmonique pour Vpol
-c  et Hpol
         do indice = 3, 4
                 Irh(0,indice,nTHETA_1) = 0.0D0
                 Irh(1,indice,nTHETA_1) = 0.0D0
                 Irh(2,indice,nTHETA_1) = Ir(2,indice)
         enddo
+
+c -----------   END COMPUTATION STOKES 3 ET 4 -------------------------
+
+c  Write to file thetal, fundamental, second harmonic for Vpol and Hpol
 c        write (10,*) theta_1, Irh(2,3,nTHETA_1)*Tw,
 c     &                   Irh(2,4,nTHETA_1)*Tw
         write (*,*) theta_1, Irh(0,1,nTHETA_1)*Tw
@@ -1530,26 +1506,28 @@ c     &                   Irh(2,4,nTHETA_1)*Tw
      &                 , Irh(2,2,nTHETA_1)*Tw
      &                 , Irh(2,3,nTHETA_1)*Tw
      &                 , Irh(2,4,nTHETA_1)*Tw
-   		write (60,*) theta_1, Irh(0,1,nTHETA_1)*Tw
+        write (60,*) theta_1, Irh(0,1,nTHETA_1)*Tw
      &                 , Irh(0,2,nTHETA_1)*Tw
      &                 , Irh(2,1,nTHETA_1)*Tw
      &                 , Irh(2,2,nTHETA_1)*Tw
      &                 , Irh(2,3,nTHETA_1)*Tw
      &                 , Irh(2,4,nTHETA_1)*Tw
-	if (fGeo.eq.0) then
-c Ecriture fichier et ecran
-	Tvn = Tw*(1-abs(Rvv0)**2)
-	Thn = Tw*(1-abs(Rhh0)**2)
-	Tv0 = -Tw*Irh(0, 1, nTHETA_1)
-	Th0 = -Tw*Irh(0, 2, nTHETA_1)
-	Tv1 = -Tw*Irh(1, 1, nTHETA_1)
-	Th1 = -Tw*Irh(1, 2, nTHETA_1)
-	U1 = -Tw*Irh(1, 3, nTHETA_1)
-	V1 = -Tw*Irh(1, 4, nTHETA_1)
-	Tv2 = -Tw*Irh(2, 1, nTHETA_1)
-	Th2 = -Tw*Irh(2, 2, nTHETA_1)
-	U2 = -Tw*Irh(2, 3, nTHETA_1)
-	V2 = -Tw*Irh(2, 4, nTHETA_1)
+      if (fGeo.eq.0) then
+
+c Write to file and screen
+
+      Tvn = Tw*(1-abs(Rvv0)**2)
+      Thn = Tw*(1-abs(Rhh0)**2)
+      Tv0 = -Tw*Irh(0, 1, nTHETA_1)
+      Th0 = -Tw*Irh(0, 2, nTHETA_1)
+      Tv1 = -Tw*Irh(1, 1, nTHETA_1)
+      Th1 = -Tw*Irh(1, 2, nTHETA_1)
+      U1 = -Tw*Irh(1, 3, nTHETA_1)
+      V1 = -Tw*Irh(1, 4, nTHETA_1)
+      Tv2 = -Tw*Irh(2, 1, nTHETA_1)
+      Th2 = -Tw*Irh(2, 2, nTHETA_1)
+      U2 = -Tw*Irh(2, 3, nTHETA_1)
+      V2 = -Tw*Irh(2, 4, nTHETA_1)
 
         write (20,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
      &                  theta_1, Tvn, Thn, Tv0, Th0,
@@ -1561,8 +1539,10 @@ c Ecriture fichier et ecran
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr
-	endif
-c  Fin Boucle Theta_1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      endif
+
+c  END Loop on local incidence angles Theta_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
         enddo
         elseif (fDiff.eq.0) then
                 write(*,*)
@@ -1575,39 +1555,44 @@ c  Fin Boucle Theta_1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                 write (*,*)
         endif
 
-	if (fGeo.ne.0) then ! seulement si on veut les grandes vaugues
+      if (fGeo.ne.0) then ! Process only if impact of large scales is
+                        ! requested (TSM, GO models)
+
 c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         
-c   Integration : PARTIE GEOMETRIQUE 
+c   Integration : GEOMETRIC component 
         
-c Début boucle theta>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	do itheta = itheta0, ntheta
+c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+c START loop on incidence angles >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      do itheta = 1, ntheta
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-		ind = theta(itheta)/1 ! on prend la partie entière de theta_1
-		Poids = (theta(itheta)/1 -ind) ! poids des diff Tb
-		AtmoU = TbAu(ind)*(1 - Poids) + TbAu(ind+1)*Poids
-		write(*,*) 'theta = ', theta(itheta)
-		write(*,*) 'ind = ', ind
-		write(*,*) 'Poids = ', Poids
-		write(*,*) 'TbAu(ind), TbAu(ind+1)', TbAu(ind), TbAu(ind+1)
-		write(*,*)  'AtmoU', AtmoU
+        ind = theta(itheta)/1 ! Take integer part of theta_1 to
+                              ! interpolate between theta_1
+        Poids = (theta(itheta)/1 -ind) ! weights for Tbs bounding theta_1
+        AtmoU = TbAu(ind)*(1 - Poids) + TbAu(ind+1)*Poids
+        write(*,*) 'theta = ', theta(itheta)
+        write(*,*) 'ind = ', ind
+        write(*,*) 'Poids = ', Poids
+        write(*,*) 'TbAu(ind), TbAu(ind+1)', TbAu(ind), TbAu(ind+1)
+        write(*,*)  'AtmoU', AtmoU
         
-     	C2 = dtand(theta(itheta))
-     	if (C2.ne.0.D0) then	
-		C7 = 1.D0/C2
-     	else
-		C7 = 1.D+99
-     	endif
-     	cothet = dcosd(theta(itheta))
-     	sithet = dsind(theta(itheta))
+        C2 = dtand(theta(itheta))
+        if (C2.ne.0.D0) then
+        C7 = 1.D0/C2
+        else
+        C7 = 1.D+99
+        endif
+        cothet = dcosd(theta(itheta))
+        sithet = dsind(theta(itheta))
 
 c-----------------------------------------------------------------------
-c                            COEFFICIENTS DE FRESNEL
+c                            FRESNEL COEFFICIENTS 
 c
-c  Rvv0    : Coefficient de reflexion en polar V
-c  Rhh0    : Coefficient de reflexion en polar H
-c  epsi    : Constante diélectrique
+c  Rvv0    : Reflection coefficient in Vertical polarization
+c  Rhh0    : Reflection coefficient in Horizontal polarization
+c  epsi    : Sea water dielectric constant
 c-----------------------------------------------------------------------
 
         Rvv0 = (epsi*cothet - sqrt(epsi-sithet*sithet))
@@ -1620,35 +1605,38 @@ c-----------------------------------------------------------------------
         Rhh0 = Rhh0*Rhh0
 
 c-----------------------------------------------------------------------
-c                       TEMPERATURE DE BRILLANCE SANS VENT
+c                       BRIGHTNESS TEMPERATURE WITHOUT WIND
 c
-c  Tvn      : Temperature de brillance en polar verticale pour une 
-c            incidence theta et une surface plane
-c  Thn      : idem en polar horizontale 
+c  Tvn      : Brightness Temperature at vertical polarisation for no wind
+c        
+c  Thn      : Brightness Temperature at horizontal polarisation for no wind
+c        
 c-----------------------------------------------------------------------
 
         Tvn  = Tw*(1.0D0 - Rvv0)
         Thn  = Tw*(1.0D0 - Rhh0)
 
 
-c Début boucle phi>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-     	do iphi = 1, 4
+c START LOOP on azimuth angles to compute harmonic coefficients >>>>>>>
+        do iphi = 1, 4
 c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         phi = TPHI(iphi)
-     	cophi = dcosd(phi)
-     	siphi = dsind(phi)
+        cophi = dcosd(phi)
+        siphi = dsind(phi)
        
-c  Calcul des bornes de l'integrale: en +- 3*variance des pentes
-c  avec pour condition Sx' < cotan(theta)
+c  Compute limits for integral as +/- three times slope variances 
+c  with condition Sx' < cotan(theta) (shadowing of waves for sensor
+c  incident at theta angle
 
         Norm2 = 0.D0
         Sy_sup =  xVar*Sc
-       	Sy_inf = -xVar*Sc
-       	del1 = (Sy_sup-Sy_inf)/(N1-1)
-       	compt = 0
+        Sy_inf = -xVar*Sc
+        del1 = (Sy_sup-Sy_inf)/(N1-1)
+        compt = 0
 
-c  INITIALISATION DU VECTEUR INTEGRATION
+c  INITIALIZATION OF INTEGRATION VECTORS
+
         do indice=1,4
                 int1(indice,iphi) = 0.0D0
                 int1e(indice,iphi) = 0.0D0
@@ -1656,15 +1644,18 @@ c  INITIALISATION DU VECTEUR INTEGRATION
                 int1eA(indice,iphi) = 0.0D0
                 int1_GO(indice,iphi) = 0.0D0
         enddo
-c  INITIALISATION DU VECTEUR DIFFUSION
+
+c  INITIALIZATION OF SCATTERING VECTORS
+
         do indice=1,4
                 Diff(indice) = 0.0D0
         enddo
         
 
-c Début  boucle Sy
-       	do i=0, N1-1
-       		Sy = Sy_inf + i*del1
+c START Loop on Slopes Sy
+
+       do i=0, N1-1
+           Sy = Sy_inf + i*del1
                 if (cophi.eq.0.D0) then
                         Sx_ = Sy*siphi
                         if (Sx_.le.C7) then
@@ -1678,8 +1669,6 @@ c Début  boucle Sy
                         limit = (C7-Sy*siphi)/cophi
                         if (cophi.gt.0.D0) then
                                 Sx_sup = min(limit, xVar*Su)
-c                                if (Sx_sup.eq.limit)
-c     &                                  compt = compt + 1
                                 Sx_sup = Sx_sup-abs(Sx_sup*1.0D-06)
                                 Sx_inf = -xVar*Su
                         else
@@ -1690,49 +1679,56 @@ c     &                                  compt = compt + 1
                 endif
                 del2 = (Sx_sup-Sx_inf)/(N2-1)
                 if ((Sx_sup.ne.66666.D0).and.(Sx_inf.ne.66666.D0)) then
-c Début boucle Sx
-          	do j=0, N2-1
-          		Sx = Sx_inf + j*del2
-                        Sx_ = Sx*cophi + Sy*siphi
-          		projec = 1.0D0-Sx_*C2
+
+c START Loop on Slopes Sx
+
+            do j=0, N2-1
+
+                Sx = Sx_inf + j*del2
+                Sx_ = Sx*cophi + Sy*siphi ! Project slope along sensor
+                                          ! direction (for shadowing and
+                                          ! solid angle computations)
+                projec = 1.0D0-Sx_*C2
 
 c-----------------------------------------------------------------------
-c                   DENSITE DE PROBABILITE DES PENTES P_Sx_Sy
+c               PROBABILITY DENSITY FUNCTION (PDF) OF SLOPES  P_Sx_Sy
 c
-c  Sx      : Pente dans la direction du vent
-c  Sy      : Pente dans la direction orthogonale à celle du vent
-c  P_Sx_Sy : Densité de probabilité pour les pentes Sx et Sy
-c  Su      : Variance des pentes dans la direction du vent
-c  Sc      : Variance des pentes dans la direction orthogonale au vent
-c  C7      : cotan(theta), limit de visibilité de la surface des vagues
+c  Sx      : Slopes in the upwind direction  
+c  Sy      : Slopes in the crosswind direction
+c  P_Sx_Sy : Probability density for slopes Sx and Sy
+c  Su      : Slope variance in the upwind direction
+c  Sc      : Slope variance in the crosswind direction
+c  C7      : cotan(theta), limit visiblity of wave surface for sensor at
+c            incidence theta
 c-----------------------------------------------------------------------
 
-       			if (Sx_.gt.C7) then
-				P_Sx_Sy = 0.0D0
-                        else
-                                call P (Sx, Sy, P_Sx_Sy, Su, Sc)
-       			endif
+          if (Sx_.gt.C7) then
+  
+              P_Sx_Sy = 0.0D0
+
+          else
+
+              call P (Sx, Sy, P_Sx_Sy, Su, Sc)
+
+          endif
 
 c-----------------------------------------------------------------------
-c      PASSAGE DES COORDONÉES LOCALES EN COORD GLOBALES 
+c      TRANSFORM LOCAL COORDINATES TO GLOBAL COORDINATES 
 c-----------------------------------------------------------------------
 
         call Glob2Loc(theta(itheta), phi, Sx, Sy, thetal, phil,
      &                cosAlpha, sinAlpha)
-c        print*, thetaL, phiL, cosAlpha, sinAlpha
         sinl = dsind(thetal)
-     	cosl = dcosd(thetal)
-c        print*, thetal, phil
+        cosl = dcosd(thetal)
 
 c-----------------------------------------------------------------------
-c       ANGLE D'INCIDENCE DANS LE REPERE GLOBAL DE LA REFLEXION 
-c       SPECULAIRE SUR LA VAGUE
-c         le satellite est dans la direction theta(itheta) (rep global)
-c                          dans la direction [thetal, phil] (rep local 
-c                               de la vague)
-c         le rayon incident réfléchi spéculairement dans le plan de 
-c             la vague vient de [thetal,-phil] (rep local)
-c             et il vient de l'angle thetaAtmo (dans le repère gloabal)
+c     INCIDENCE ANGLE IN THE GLOBAL COORDINATE SYSTEM OF THE SPECULAR
+C                        REFLECTION ON THE WAVE
+c
+c       Satellite is in direction theta(itheta) (global flat sea system),
+c                    in direction [thetal, phil] (local wave system) 
+c       Incident wave specularly reflected in the wave plane come from 
+c             [thetal,-phil] (local) and from thetaAtmo (global).
 c-----------------------------------------------------------------------
 
         call Glob2Loc(theta(itheta), phi, Sx, Sy, thetaAtmo, temp1,
@@ -1741,8 +1737,10 @@ c-----------------------------------------------------------------------
 c TEST USE OF GLOBAL POLAR ANGLE OF INCIDENT ATMO RADIATION 
 c INSTEAD OF LOCAL INCIDENCE ANGLE FOR TB ATMO
         call Loc2Glob(thetal, phil+180, Sx, Sy, thetaAtmo)
+
 c        thetaAtmo = 180 - thetaAtmo
 c		write(*,*) thetal, thetaAtmo
+
 c ORIGINAL PHD VERSION (BUG??)
 c NOTE : index out of bound (i.e theta > 90 deg) bring TbAd = 0
         AtmoD = TbAd(int(thetaAtmo))*(int(thetaAtmo)-thetaAtmo+1) 
@@ -1756,54 +1754,52 @@ c	AtmoD = 0.0D0
 c	tau_ = 0.0D0
 
 c-----------------------------------------------------------------------
-c               COEFFICIENT DE MODULATION HYDRODYNAMIQUE h
+c               HYDRODYNAMIC MODULATION COEFFICIENT h
 c
-c  Sx : Pente de la vague dans la direction du vent
-c  Su : Variance de la distribution des vagues dans la direction du vent
-c  h  : Coefficient de modulation hydrodynamique
+c  Sx : Wave Slope in upwind direction
+c  Su : Slope variance in upwind direction
+c  h  : hydrodynamic modulation coefficient
 c-----------------------------------------------------------------------
 
-          		if (abs(Sx/Su).le.(1.25D0)) then
-       				h = 1.D0- 4.D-01*Sx/Su
-          		else
-       				h = 1.D0 - 5.D-01*dsign(1.D0,Sx)
-          		endif
+         if (abs(Sx/Su).le.(1.25D0)) then
+               h = 1.D0- 4.D-01*Sx/Su
+         else
+               h = 1.D0 - 5.D-01*dsign(1.D0,Sx)
+         endif
 
 c-----------------------------------------------------------------------
-c                       EMISSIVITE DE L'ECUME epsi_sf
+c                       FOAM EMISSIVITY epsi_sf
 c
-c  thetal  : Angle d'incidence dans le plan de la vague ( = local)
-c  nu      : Fréquence électromagnétique en GHz
+c  thetal  : local incidence in the plane of the wave 
+c  nu      : electromagnetic frequency  en GHz
 c  epsi_sf : Brightness temperature of foam in polarisaion V (indice 1) et H(indice 2)
 c-----------------------------------------------------------------------
       foamEmiss : select case (fEmisEcume)
 
-         case (1)
+      case (1)
 
                 call esf (thetal, nu, epsi_sf)
 
-        case (2:6)
+      case (2:6)
 
                 call foam_Tb_Yin16 (fEmisEcume - 1, SSS(iSSS),
      &                          SST(iSST), nu, thetal, epsi_sf)
 
-	case (7) 	! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
+      case (7)  ! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
 
                 call foam_emiss(nuband, SSS(iSSS), SST(iSST),
      &                           nu, thetal, epsi_sf)
 
-        end select foamEmiss
-
-        !print *, '-->', thetal, epsi_sf(1), epsi_sf(2)
+      end select foamEmiss
 
 c-----------------------------------------------------------------------
-c                      COEFFICIENTS DE FRESNEL LOCAUX
+c                      LOCAL FRESNEL COEFFICIENTS
 c
-c  Rvv0    : Coefficient de reflexion en polar V
-c  Rhh0    : Coefficient de reflexion en polar H
-c  epsi    : Constante diélectrique
-c  cosl    : Cosinus de l'incidence dans le plan de la vague ( = local)
-c  sinl    : Sinus de l'incidence dans le plan de la vague ( = local)
+c  Rvv0    : Reflection Coefficient in polarization V
+c  Rhh0    : Reflection Coefficient in polarization H
+c  epsi    : Dielectric Constant
+c  cosl    : Cosine of local incidence angle in the plane of the wave
+c  sinl    : Sine of local incidence angle in the plane of the wave
 c-----------------------------------------------------------------------
 
         Rvv0 = (epsi*cosl - sqrt(epsi-sinl*sinl))
@@ -1814,27 +1810,30 @@ c-----------------------------------------------------------------------
         Rhh0 = abs(Rhh0) 
         Rvv0 = Rvv0*Rvv0
         Rhh0 = Rhh0*Rhh0
+
 c-----------------------------------------------------------------------
-c                            COEFFICIENTS DE FRESNEL "EFFECTIFS" LOCAUX
+c           EFFECTIVE LOCAL FRESNEL COEFFICIENTS 
 c
-c  Rvv0    : Coefficient de reflexion en polar V
-c  Rhh0    : Coefficient de reflexion en polar H
-c  Rveff   : Coefficient de reflexion effectif en polar V
-c  Rheff   : Coefficient de reflexion effectif en polar V
+c  Rvv0    : Reflection Coefficient in polarization V
+c  Rhh0    : Reflection Coefficient in polarization H
+c  Rveff   : Effective Reflection Coefficient in polarization V
+c  Rheff   : Effective Reflection Coefficient in polarization H
 
         Rveff = Rvv0*dexp(-4.0D0*(sigma*cosl*k0)**2)
         Rheff = Rhh0*dexp(-4.0D0*(sigma*cosl*k0)**2)
 
 c-----------------------------------------------------------------------
-c                       INTERPOLATION DE LA DIFFUSION
+c
+c    INTERPOLATION OF SMALL SCALE SCATTERING AT NEEDED INCIDENCE ANGLES
 c
 c-----------------------------------------------------------------------
 
-c SI ON RESTE DANS LE DOMAINE TABULÉ
+c If Inside Tabulated Domain
+
                         if (thetal.le.THETAmax) then
                                 ind     = thetal/DTHETAtab
                                 Poids   = (thetal/DTHETAtab-ind) 
-c Fondamental
+c Fundamental
                         Diff(1) = Irh(0,1,ind)*(1.0D0-Poids)
      &                            + Irh(0,1,ind+1)*Poids
                         Diff(2) = Irh(0,2,ind)*(1.0D0-Poids)
@@ -1843,7 +1842,7 @@ c Fondamental
      &                            + Irh(0,3,ind+1)*Poids
                         Diff(4) = Irh(0,4,ind)*(1.0D0-Poids)
      &                            + Irh(0,4,ind+1)*Poids
-c 2eme Harmonique
+c 2nd Harmonic
 
                         Diff(1) = Diff(1) + (Irh(2,1,ind)*(1.0D0-Poids)
      &                                    + Irh(2,1,ind+1)*Poids
@@ -1857,16 +1856,18 @@ c 2eme Harmonique
                         Diff(4) = Diff(4) + (Irh(2,4,ind)*(1.0D0-Poids)
      &                                    + Irh(2,4,ind+1)*Poids
      &                                      )*dsind(2.0D0*phiL)
-c       print*, Diff(1),  Irh(0,1,ind), Irh(0,1,ind+1), Irh(2,1,ind)
-c     &             , Irh(2,1,ind+1), dcosd(2.0D0*phil), phil
-c SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
+
+c If Outside Tabulated Domain but allowing for small numerical error
+
                         elseif ((P_Sx_Sy.eq.0.D0).or.
      &                          (thetal.le.THETAmax*1.0001D0)) then
                                 do indice = 1, 4
                                         Diff(indice) = 0.0D0
                                 enddo
                         else
-c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
+
+c If Really Outside, ERROR => END EXECUTION
+
                                 print *, 'ERROR !!!!!!!!!!!!!'
                                 print *, 'thetal > THETAmax'
                                 print *, thetal, ' > ', THETAmax
@@ -1877,194 +1878,206 @@ c SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
 
 
 c-----------------------------------------------------------------------
-c                       VECTEUR DE STOKES GLOBAL
+c                       GLOBAL STOKES VECTOR
 c
 
-c  CONTRIBUTION DE L'ECUME ET DE LA DIFFUSION DE BRAGG AU VECTEUR LOCAL
+c  CONTRIBUTION FROM FOAM AND BRAGG SCATTERING TO LOCAL VECTOR
 
-c--- Vecteur de stokes dans le repère local
-c  		AVEC ATMOSPHERE
-c                       avec ecume
+c--- STOKES vector in the local frame of title waves
 
-          		Isl_eA(1) = (Tw*(1.0D0-(Rvv0+h*Diff(1)))*Fr_
+c  		WITH ATMOSPHERE
+c                       with foam
+
+                Isl_eA(1) = (Tw*(1.0D0-(Rvv0+h*Diff(1)))*Fr_
      &                   + epsi_sf(1)*Fr + AtmoD*Rvv0)*dexp(-tau_)
-          		Isl_eA(2) = (Tw*(1.0D0-(Rhh0+h*Diff(2)))*Fr_
+                Isl_eA(2) = (Tw*(1.0D0-(Rhh0+h*Diff(2)))*Fr_
      &                   + epsi_sf(2)*Fr + AtmoD*Rhh0)*dexp(-tau_)
 
-c                       sans ecume
+c                       without foam
 
-          		IslA(1) = (Tw*(1.0D0-(Rvv0+h*Diff(1)))
+                IslA(1) = (Tw*(1.0D0-(Rvv0+h*Diff(1)))
      &                                  + AtmoD*Rvv0)*dexp(-tau_) 
-          		IslA(2) = (Tw*(1.0D0-(Rhh0+h*Diff(2)))
+                IslA(2) = (Tw*(1.0D0-(Rhh0+h*Diff(2)))
      &                                  + AtmoD*Rhh0)*dexp(-tau_) 
-          		IslA(3) = (Tw*(0.D0-h*Diff(3)))*dexp(-tau_)
+                IslA(3) = (Tw*(0.D0-h*Diff(3)))*dexp(-tau_)
                         IslA(4) = (Tw*(0.D0-h*Diff(4)))*dexp(-tau_)
-c  		SANS ATMOSPHERE
-c                       avec ecume
+c  		WITHOUT ATMOSPHERE
+c                       with foam
 
-          		Isl_e(1) = Tw*(1.0D0-(Rvv0+h*Diff(1)))*Fr_
+                Isl_e(1) = Tw*(1.0D0-(Rvv0+h*Diff(1)))*Fr_
      &                   + epsi_sf(1)*Fr
-          		Isl_e(2) = Tw*(1.0D0-(Rhh0+h*Diff(2)))*Fr_
+                Isl_e(2) = Tw*(1.0D0-(Rhh0+h*Diff(2)))*Fr_
      &                   + epsi_sf(2)*Fr
 
-c                       sans ecume
+c                       without ecume
 
-          		Isl(1) = Tw*(1.0D0-(Rvv0+h*Diff(1)))
-          		Isl(2) = Tw*(1.0D0-(Rhh0+h*Diff(2)))
-          		Isl(3) = Tw*(0.D0-h*Diff(3))
-       			Isl(4) = Tw*(0.D0-h*Diff(4))
+                Isl(1) = Tw*(1.0D0-(Rvv0+h*Diff(1)))
+                Isl(2) = Tw*(1.0D0-(Rhh0+h*Diff(2)))
+                Isl(3) = Tw*(0.D0-h*Diff(3))
+                Isl(4) = Tw*(0.D0-h*Diff(4))
+
 c		For GO model only
-          		Isl_GO(1) = Tw*(1.0D0-(Rvv0))
-          		Isl_GO(2) = Tw*(1.0D0-(Rhh0))
-          		Isl_GO(3) = 0.D0
-       			Isl_GO(4) = 0.D0
 
+                Isl_GO(1) = Tw*(1.0D0-(Rvv0))
+                Isl_GO(2) = Tw*(1.0D0-(Rhh0))
+                Isl_GO(3) = 0.D0
+                Isl_GO(4) = 0.D0
 
-c--- Vecteur de stokes dans le repère global
-c  		AVEC ATMOSPHERE
-c                       avec ecume
+c--- Stokes Vector in Global System
 
-                        Is_eA(1) = Isl_eA(1)*cosalpha**2
-     &                           + Isl_eA(2)*sinalpha**2
-     &                           + IslA(3)*cosalpha*sinalpha
-          		Is_eA(2) = Isl_eA(1)*sinalpha**2
-     &                           + Isl_eA(2)*cosalpha**2
-     &          		 - IslA(3)*cosalpha*sinalpha
-                        Is_eA(3) = IslA(3)*(cosalpha**2-sinalpha**2) -
-     &                      (Isl_eA(1)-Isl_eA(2))*2.D0*sinalpha*cosalpha
-                        Is_eA(4) = IslA(4)
+c  		WITH ATMOSPHERE
+c                       with foam
 
-c                       sans ecume
+                Is_eA(1) = Isl_eA(1)*cosalpha**2
+     &                     + Isl_eA(2)*sinalpha**2
+     &                     + IslA(3)*cosalpha*sinalpha
+                Is_eA(2) = Isl_eA(1)*sinalpha**2
+     &                     + Isl_eA(2)*cosalpha**2
+     &                     - IslA(3)*cosalpha*sinalpha
+                Is_eA(3) = IslA(3)*(cosalpha**2-sinalpha**2)
+     &                      - (Isl_eA(1)-Isl_eA(2))*2.D0*
+     &                     sinalpha*cosalpha
+                Is_eA(4) = IslA(4)
 
-          		IsA(1) = IslA(1)*cosalpha**2 
-     &                         + IslA(2)*sinalpha**2 
-     &          	       + IslA(3)*cosalpha*sinalpha 
-          		IsA(2) = IslA(1)*sinalpha**2 
-     &                         + IslA(2)*cosalpha**2 
-     &          	       - IslA(3)*cosalpha*sinalpha
-                        IsA(3) = IslA(3)*(cosalpha**2-sinalpha**2) -
-     &                      (IslA(1)-IslA(2))*2.D0*sinalpha*cosalpha
-                        IsA(4) = IslA(4)
+c                       without foam
 
-c  		SANS ATMOSPHERE
-c                       avec ecume
+                IsA(1) = IslA(1)*cosalpha**2 
+     &                   + IslA(2)*sinalpha**2 
+     &                   + IslA(3)*cosalpha*sinalpha 
+                IsA(2) = IslA(1)*sinalpha**2 
+     &                   + IslA(2)*cosalpha**2 
+     &                   - IslA(3)*cosalpha*sinalpha
+                IsA(3) = IslA(3)*(cosalpha**2-sinalpha**2)
+     &                   - (IslA(1)-IslA(2))*2.D0*
+     &                   sinalpha*cosalpha
+                IsA(4) = IslA(4)
 
-          		Is_e(1) = Isl_e(1)*cosalpha**2 
-     &                          + Isl_e(2)*sinalpha**2 
-     &          		+ Isl(3)*cosalpha*sinalpha 
-          		Is_e(2) = Isl_e(1)*sinalpha**2 
-     &                          + Isl_e(2)*cosalpha**2 
-     &          		- Isl(3)*cosalpha*sinalpha
-                        Is_e(3) = Isl(3)*(cosalpha**2-sinalpha**2) -
-     &                        (Isl_e(1)-Isl_e(2))*2.D0*sinalpha*cosalpha
-                        Is_e(4) = Isl(4)
+c  		WITHOUT ATMOSPHERE
+c                       with foam
 
-c                       sans ecume
+                Is_e(1) = Isl_e(1)*cosalpha**2 
+     &                    + Isl_e(2)*sinalpha**2 
+     &                    + Isl(3)*cosalpha*sinalpha 
+                Is_e(2) = Isl_e(1)*sinalpha**2 
+     &                    + Isl_e(2)*cosalpha**2 
+     &                    - Isl(3)*cosalpha*sinalpha
+                Is_e(3) = Isl(3)*(cosalpha**2-sinalpha**2)
+     &                    - (Isl_e(1)-Isl_e(2))*2.D0*
+     &                    sinalpha*cosalpha
+                Is_e(4) = Isl(4)
 
-          		Is(1) = Isl(1)*cosalpha**2 
-     &                        + Isl(2)*sinalpha**2 
-     &                        + Isl(3)*cosalpha*sinalpha 
-          		Is(2) = Isl(1)*sinalpha**2 
-     &                        + Isl(2)*cosalpha**2 
-     &                        - Isl(3)*cosalpha*sinalpha
-                        Is(3) = Isl(3)*(cosalpha**2-sinalpha**2) -
-     &                        (Isl(1)-Isl(2))*2.D0*sinalpha*cosalpha
-                        Is(4) = Isl(4)
+c                       without foam
+
+                Is(1) = Isl(1)*cosalpha**2 
+     &                  + Isl(2)*sinalpha**2 
+     &                  + Isl(3)*cosalpha*sinalpha 
+                Is(2) = Isl(1)*sinalpha**2 
+     &                  + Isl(2)*cosalpha**2 
+     &                  - Isl(3)*cosalpha*sinalpha
+                Is(3) = Isl(3)*(cosalpha**2-sinalpha**2)
+     &                  - (Isl(1)-Isl(2))*2.D0*
+     &                  sinalpha*cosalpha
+                Is(4) = Isl(4)
+
 c                     For GO model Only 
 
-          		Is_GO(1) = Isl_GO(1)*cosalpha**2 
-     &                        + Isl_GO(2)*sinalpha**2 
-     &                        + Isl_GO(3)*cosalpha*sinalpha 
-          		Is_GO(2) = Isl_GO(1)*sinalpha**2 
+                Is_GO(1) = Isl_GO(1)*cosalpha**2 
+     &                     + Isl_GO(2)*sinalpha**2 
+     &                     + Isl_GO(3)*cosalpha*sinalpha 
+                Is_GO(2) = Isl_GO(1)*sinalpha**2 
      &                        + Isl_GO(2)*cosalpha**2 
      &                        - Isl_GO(3)*cosalpha*sinalpha
-                        Is_GO(3) = Isl_GO(3)*(cosalpha**2-sinalpha**2) -
-     &                    (Isl_GO(1)-Isl_GO(2))*2.D0*sinalpha*cosalpha
-                        Is_GO(4) = Isl_GO(4)
+                Is_GO(3) = Isl_GO(3)*(cosalpha**2-sinalpha**2)
+     &                     - (Isl_GO(1)-Isl_GO(2))*2.D0*
+     &                     sinalpha*cosalpha
+                Is_GO(4) = Isl_GO(4)
 
 
-c---Integrand Tb
-c  		AVEC ATMOSPHERE
-c                       avec ecume
+c--- Compute Tbs
+c  		WITH ATMOSPHERE
+c                       with ecume
 
-          		int1eA(1,iphi) = int1eA(1,iphi) + 
+                int1eA(1,iphi) = int1eA(1,iphi) + 
      &                                 Is_eA(1)*projec*P_Sx_Sy*del1*del2
-          		int1eA(2,iphi) = int1eA(2,iphi) + 
+                int1eA(2,iphi) = int1eA(2,iphi) + 
      &                                 Is_eA(2)*projec*P_Sx_Sy*del1*del2
-          		int1eA(3,iphi) = int1eA(3,iphi) + 
+                int1eA(3,iphi) = int1eA(3,iphi) + 
      &                                 Is_eA(3)*projec*P_Sx_Sy*del1*del2
-          		int1eA(4,iphi) = int1eA(4,iphi) + 
+                int1eA(4,iphi) = int1eA(4,iphi) + 
      &                                 Is_eA(4)*projec*P_Sx_Sy*del1*del2
 
-c                       sans ecume
+c                       without foam
 
-          		int1A(1,iphi) = int1A(1,iphi) + 
+                int1A(1,iphi) = int1A(1,iphi) + 
      &                                 IsA(1)*projec*P_Sx_Sy*del1*del2
-          		int1A(2,iphi) = int1A(2,iphi) + 
+                int1A(2,iphi) = int1A(2,iphi) + 
      &                                 IsA(2)*projec*P_Sx_Sy*del1*del2
-          		int1A(3,iphi) = int1A(3,iphi) + 
+                int1A(3,iphi) = int1A(3,iphi) + 
      &                                 IsA(3)*projec*P_Sx_Sy*del1*del2
-          		int1A(4,iphi) = int1A(4,iphi) + 
+                int1A(4,iphi) = int1A(4,iphi) + 
      &                                 IsA(4)*projec*P_Sx_Sy*del1*del2
 
-c  		SANS ATMOSPHERE
-c                       avec ecume
+c  		WITHOUT ATMOSPHERE
+c                       with foam
 
-          		int1e(1,iphi) = int1e(1,iphi) + 
+                int1e(1,iphi) = int1e(1,iphi) + 
      &                                 Is_e(1)*projec*P_Sx_Sy*del1*del2
-          		int1e(2,iphi) = int1e(2,iphi) + 
+                int1e(2,iphi) = int1e(2,iphi) + 
      &                                 Is_e(2)*projec*P_Sx_Sy*del1*del2
-          		int1e(3,iphi) = int1e(3,iphi) + 
+                int1e(3,iphi) = int1e(3,iphi) + 
      &                                 Is_e(3)*projec*P_Sx_Sy*del1*del2
-          		int1e(4,iphi) = int1e(4,iphi) + 
+                int1e(4,iphi) = int1e(4,iphi) + 
      &                                 Is_e(4)*projec*P_Sx_Sy*del1*del2
-c                       sans ecume
+c                       without foam
 
-          		int1(1,iphi) = int1(1,iphi) + 
+                int1(1,iphi) = int1(1,iphi) + 
      &                                 Is(1)*projec*P_Sx_Sy*del1*del2
-          		int1(2,iphi) = int1(2,iphi) + 
+                int1(2,iphi) = int1(2,iphi) + 
      &                                 Is(2)*projec*P_Sx_Sy*del1*del2
-          		int1(3,iphi) = int1(3,iphi) + 
+                int1(3,iphi) = int1(3,iphi) + 
      &                                 Is(3)*projec*P_Sx_Sy*del1*del2
-          		int1(4,iphi) = int1(4,iphi) + 
+                int1(4,iphi) = int1(4,iphi) + 
      &                                 Is(4)*projec*P_Sx_Sy*del1*del2
 c                       For GO model only
 
-          		int1_GO(1,iphi) = int1_GO(1,iphi) + 
+                int1_GO(1,iphi) = int1_GO(1,iphi) + 
      &                                 Is_GO(1)*projec*P_Sx_Sy*del1*del2
-          		int1_GO(2,iphi) = int1_GO(2,iphi) + 
+                int1_GO(2,iphi) = int1_GO(2,iphi) + 
      &                                 Is_GO(2)*projec*P_Sx_Sy*del1*del2
-          		int1_GO(3,iphi) = int1_GO(3,iphi) + 
+                int1_GO(3,iphi) = int1_GO(3,iphi) + 
      &                                 Is_GO(3)*projec*P_Sx_Sy*del1*del2
-          		int1_GO(4,iphi) = int1_GO(4,iphi) + 
+                int1_GO(4,iphi) = int1_GO(4,iphi) + 
      &                                 Is_GO(4)*projec*P_Sx_Sy*del1*del2
 
 
 
-c  NORMALISATION DE LA DENSITE DE PROBABILITE : Norm2
+c  NORMALIZATION OF DENSITY PROBABILITY : Norm2
+
                         Norm2 = Norm2 + projec*P_Sx_Sy*del1*del2
-                enddo
-                endif
-                enddo
-c  AVEC ATMO
-c               avec ecume
+                enddo ! do j=0, N2-1 (Loop on Sx)
+                
+                endif ! if ((Sx_sup.ne.66666.D0).and.(Sx_inf.ne.66666.D0)) 
+
+                enddo ! do i=0, N1-1 (Loop on Sy)
+c  WITH ATMOSPHERE
+c               with foam
                 int1eA(1,iphi) = int1eA(1,iphi)/Norm2
                 int1eA(2,iphi) = int1eA(2,iphi)/Norm2
                 int1eA(3,iphi) = int1eA(3,iphi)/Norm2
                 int1eA(4,iphi) = int1eA(4,iphi)/Norm2
-c               sans ecume
+c               without foam
                 int1A(1,iphi) = int1A(1,iphi)/Norm2
                 int1A(2,iphi) = int1A(2,iphi)/Norm2
                 int1A(3,iphi) = int1A(3,iphi)/Norm2
                 int1A(4,iphi) = int1A(4,iphi)/Norm2
 
-c  SANS ATMO
-c               avec ecume
+c  WITHOUT ATMOSPHERE
+c               with foam
                 int1e(1,iphi) = int1e(1,iphi)/Norm2
                 int1e(2,iphi) = int1e(2,iphi)/Norm2
                 int1e(3,iphi) = int1e(3,iphi)/Norm2
                 int1e(4,iphi) = int1e(4,iphi)/Norm2
-c               sans ecume
+c               without foam
                 int1(1,iphi) = int1(1,iphi)/Norm2
                 int1(2,iphi) = int1(2,iphi)/Norm2
                 int1(3,iphi) = int1(3,iphi)/Norm2
@@ -2074,20 +2087,20 @@ c            for GO only
                 int1_GO(2,iphi) = int1_GO(2,iphi)/Norm2
                 int1_GO(3,iphi) = int1_GO(3,iphi)/Norm2
                 int1_GO(4,iphi) = int1_GO(4,iphi)/Norm2
-c Fin boucle phi<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      		enddo
+
+c END Loop  phi <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      enddo
 c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 c----------------------------------------------------------------------
 c                       COMPUTE TB HARMONIC COEFFICIENTS
 c
-c int1(1,1) : Tb verticale en phi = TPHI(1) = 0°
-c int1(1,2) : Tb verticale en phi = TPHI(2) = 45°
-c int1(1,3) : Tb verticale en phi = TPHI(3) = 90°
-c int1(1,4) : Tb verticale en phi = TPHI(4) = 180°
-c Le premier indice de int1 defini l'indice du parametre de stokes et 
-c varie de 1 à 4 respectivement pour Tv, Th, U et V.
-
+c int1(1,1) : Tb vertical at phi = TPHI(1) = 0°
+c int1(1,2) : Tb vertical at phi = TPHI(2) = 45°
+c int1(1,3) : Tb vertical at phi = TPHI(3) = 90°
+c int1(1,4) : Tb vertical at phi = TPHI(4) = 180°
+c First indice in int1 defines Stokes parameter and 
+c ranges from 1 to 4 for Tv, Th, U et V respectively.
 
 c ------- NO ATMO & NO FOAM  ----------
 
@@ -2117,11 +2130,12 @@ c       For GO model only
 
 c       COMPUTE AND WRITE BRAGG SCATTERING
 
-c       SI ON RESTE DANS LE DOMAINE TABULÉ
+c       IF WE STAY IN TABULATED DOMAIN
+
                         if (theta(itheta).le.THETAmax) then
                                 ind     = theta(itheta)/DTHETAtab
                                 Poids   = (theta(itheta)/DTHETAtab-ind) 
-c       Fondamental
+c       Fundamental
                         Tv0_SPM = Tw*(-(Irh(0,1,ind)*(1.0D0-Poids)
      &                            + Irh(0,1,ind+1)*Poids))
                         Th0_SPM = Tw*(-(Irh(0,2,ind)*(1.0D0-Poids)
@@ -2130,7 +2144,7 @@ c       Fondamental
      &                            + Irh(0,3,ind+1)*Poids))
                         T40_SPM = Tw*(-(Irh(0,4,ind)*(1.0D0-Poids)
      &                            + Irh(0,4,ind+1)*Poids))
-c       2eme Harmonique
+c       2nd Harmonic
                         Tv2_SPM = Tw*(-(Irh(2,1,ind)*(1.0D0-Poids)
      &                                    + Irh(2,1,ind+1)*Poids))
                         Th2_SPM = Tw*(-(Irh(2,2,ind)*(1.0D0-Poids)
@@ -2140,14 +2154,17 @@ c       2eme Harmonique
                         T42_SPM = Tw*(-(Irh(2,4,ind)*(1.0D0-Poids)
      &                                    + Irh(2,4,ind+1)*Poids))
 
-c       SI ON SORT DU DOMAINE TABULÉ À LA PRECISION NUMÉRIQUE PRÈS
+c       OUT OF TABULATED DOMAIN WITHIN NUMERICAL ACCURACY
+
                         elseif ((P_Sx_Sy.eq.0.D0).or.
      &                     (theta(itheta).le.THETAmax*1.0001D0)) then
                                 do indice = 1, 4
                                         Diff(indice) = 0.0D0
                                 enddo
                         else
-c       SI ON SORT DU DOMAINE, ERREUR => SORTIE DU PROGRAMME
+
+c       OUT OF TABULATED DOMAIN , ERROR => END EXECUTION
+
                                 print *, 'ERROR !!!!!!!!!!!!!'
                                 print *, 'theta(itheta) > THETAmax'
                                 print *, theta(itheta), ' > ', THETAmax
@@ -2270,32 +2287,33 @@ c Write to output file and screen
 
 
  
-c Fin boucle Theta<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+c END  LOOP  Theta<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
         enddo
-! TO BE REMOVED !!! (use for continuation of computations)
-      itheta0 = 1
+
 c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	endif ! fin condition sur fGeo
-c  Fin intégrale sur les grandes vagues
 
-c  Fin Boucle kd
+        endif ! END Condition on fGeo
+
+c  END INTEGRATION ON LARGE WAVES
+
+c  END loop on cutoff kd <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
+c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-c  Fin Boucle Vent
+c  END Loop on Wind <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
-! TO BE REMOVED !!! (use for continuation of computations)
-      iWind0 = 1
-c  Fin Boucle SST
+c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+c  END Loop on SST    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
-! TO BE REMOVED !!! (use for continuation of computations)
-      iSST0 = 1
+c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-c  Fin Boucle SSS
+c  END Loop on SSS    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         enddo
-! TO BE REMOVED !!! (use for continuation of computations)
-      iSSS0 = 1
+c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-
+c Close open files
 
         close (10)
         close (15)
@@ -2311,6 +2329,7 @@ c ---------- Formats --------------------------
      &        8(1x,f6.3),1x,e9.3,1x,f5.2,2(1x,f6.2),2(1x,e9.3),1x,f5.1,
      &       18(1x,f7.3))
         stop
+
 c ---------- Error messages --------------------------      
    60      print*, 'Unable to open or read ', fin1
         stop
@@ -2327,5 +2346,5 @@ c ---------- Error messages --------------------------
         stop
 
 
-        end
+        end ! END MAIN PROGRAM
 
