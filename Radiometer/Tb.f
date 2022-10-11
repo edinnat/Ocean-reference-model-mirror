@@ -94,10 +94,11 @@ c Variable Declarations
         character*80 fout2 ! Output data file (without foam simulation)
         character*80 fin1  ! Input data file (geophysical and instrumental parameters, model choices)
         character*80 pathout ! Path for saving output files
-        character*80 KudryFilter1 ! filename of lookup table for Kudryavtsev filter function 1
-        character*80 KudryFilter2 ! filename of lookup table for Kudryavtsev filter function 2
-        character*80 KudryFilter3 ! filename of lookup table for Kudryavtsev filter function 3
+        character*300 KudryFilter1 ! filename of lookup table for Kudryavtsev filter function 1
+        character*300 KudryFilter2 ! filename of lookup table for Kudryavtsev filter function 2
+        character*300 KudryFilter3 ! filename of lookup table for Kudryavtsev filter function 3
         character*200 logFile ! filename for program execution report
+        character*300 :: dtRt ! Root path to ocean model code whereto look for the Data folder
         character*1 cVar
         character*1  cepsi
         character*1  csigneeps
@@ -406,9 +407,14 @@ c----------- Process Time and Date of Program Execution -----------
 
 c------------ Management of Input Output Files ----------------
 c Lookup table for Kudryavtsev filters        
-        KudryFilter1 = 'Data/Kudryavtsev_Spectrum/filterF.dat'
-        KudryFilter2 = 'Data/Kudryavtsev_Spectrum/filterFres.dat' 
-        KudryFilter3 = 'Data/Kudryavtsev_Spectrum/filterPhi.dat'  
+
+        call getenv('OceanMod', dtRt)
+        KudryFilter1 = dtRt(1:lnblnk(dtRt))//
+     &                 'Data/Kudryavtsev_Spectrum/filterF.dat'
+        KudryFilter2 = dtRt(1:lnblnk(dtRt))//
+     &                  'Data/Kudryavtsev_Spectrum/filterFres.dat' 
+        KudryFilter3 = dtRt(1:lnblnk(dtRt))//
+     &                  'Data/Kudryavtsev_Spectrum/filterPhi.dat'  
 
 c Identify file of input parameters
         call getarg (1, fin1)                   ! get 1st parameter
