@@ -103,7 +103,6 @@
       call getenv('OceanMod', Fort)
       hiresfile = Fort(1:lnblnk(Fort))//
      &'/Data/Refractive_Index/refindex_hifreq.dat'
-      write(*,*) hiresfile
       open(unit=42, file=hiresfile, status='old',
      &     action='read', iostat=stat)
       if (stat /= 0) stop 'Could not open file : '//hiresfile
