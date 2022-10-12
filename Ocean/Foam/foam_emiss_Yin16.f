@@ -2,31 +2,6 @@ c
 c                                             /--- alphaz
 c                        /--- loss_factor ---/
 c                       /                    \
-c foam_emissYin16 -----/                      \--- thetaz --- betaz --- void_fraction_profile 
-c                      \                                                            \   
-c                       \                                                            \--- eps_klein_swift
-c                        \                                                           
-c                         \                                                         
-c                          \--- IncohEmissivity_TwoLayer ----------- ReflTransm_PlanarBoundary  
-c
-
-c Description: Code computes incoherent emissivity of an inhomogeneous layer
-c separated by air on top and a homogeneous medium on the bottom, with
-c perfectly smooth parallel boundaries on both sides.
-
-c Input Variables: 
-c    %eps2: dielectric constant of middle layer
-c    %eps3: dielectric constant of bottom layer
-c    %theta_i: incidence angle in air (deg)
-c    %a: Single scattering albedo
-c    %d: layer thickness (m)
-c    %kappa_e: extinction rate through layer (Np/m)
-c    
-c%Output Products:
-c    %e_v_inc(theta_i): v-polarized emissivity
-c    %e_h_inc(theta_i): h-polarized emissivity
-
-    
 
       subroutine foam_Tb_Yin16 ( modl, S, T, f, tht, e_foam )
 
@@ -93,7 +68,7 @@ c    %e_h_inc(theta_i): h-polarized emissivity
                 stop
         end select modelEmiss
 
-        call epsilon_KS(S, T, epsks, f*1.D9)
+        call epsilon_KS(T, S, epsks, f*1.D9)
 
         call esf_anguelova (tht,f*1.D9,epsks,h_fe0,Vaf0,ev_foam,eh_foam)
 
