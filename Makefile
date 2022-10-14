@@ -149,11 +149,11 @@ Tb : $(ObjectsTb)
 
 TbTot : $(ObjectsTbTot)
 	echo ======= linking TbTot ============
-	$(Fort) $^ -o $(join $(join $(FN), /Binaries/), $@)
+	$(Fort) $(Opts) $^ -o $(join $(join $(FN), /Binaries/), $@)
 
 NRCS : $(ObjectsNRCS)
 	echo ======= linking NRCS ============
-	$(Fort) $^ -o $(join $(join $(FN), /Binaries/), $@) 
+	$(Fort) $(Opts) $^ -o $(join $(join $(FN), /Binaries/), $@) 
 
 #-----------------------------------------------------------------------
 
