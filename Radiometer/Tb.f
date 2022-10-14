@@ -733,7 +733,7 @@ c                ModSpectre = 'Power law'
                 ModCouvEcume = 'No foam.'
                 fCouvEcume = 0
         elseif ((cCouvEcume.eq.'M1').or.(cCouvEcume.eq.'m1')) then
-                ModCouvEcume = 'Monahan (1986, eq.5)'
+               ModCouvEcume = 'Monahan & O''Muircheartaigh (1986, eq.5)'
                 fCouvEcume = 1
         elseif ((cCouvEcume.eq.'M2').or.(cCouvEcume.eq.'m2')) then
                 ModCouvEcume = 'Monahan least square (1986, eq. 3a)'
@@ -811,7 +811,7 @@ c                ModSpectre = 'Power law'
                 print *,'     M-Du-S : Yin et al. (2016) M-Du-S version'
                 print *,'     M-Ku-E : Yin et al. (2016) M-Ku-E version'
                 print *,'     M-Ku-S : Yin et al. (2016) M-Ku-S version'
-                print *,'  M-Du-tune : Yin et al. (2016) tuned version'
+              print *,'     M-Du-tune : Yin et al. (2016) tuned version'
                 print *,'Current choice is: ',cEmisEcume
                 write(*,*)
                 stop
@@ -828,6 +828,25 @@ c       emissivity when using Yin et al. 2016
            print *,
            write(*,*) 'The Yin et al. 2016 should use the same model com
      &ponent for fraction and emissivity. Current selection is : '
+           write(*,*) '  Fraction = '//cCouvEcume
+           write(*,*) '  Emissivity = '//cEmisEcume
+
+           print *, char(7)
+           call sleep (3)
+
+       endif
+
+c       Display warning if model inconsistency for foam fraction and
+c       emissivity when using the frequency Tuned model Anguelova et al. 2022
+      
+       if ((fEmisEcume.eq.7).and.(fCouvEcume.ne.1)) then
+
+           write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
+     &foam emissivity are inconsistent.'
+           print *,
+           write(*,*) 'The frequency tuned foam emissivity model (Anguel
+     &ova et al. 2022) was optimized for the foam coverage fraction M1
+     &(Monahan & O''Muircheartaigh , 1986). Current selection is : '
            write(*,*) '  Fraction = '//cCouvEcume
            write(*,*) '  Emissivity = '//cEmisEcume
 
