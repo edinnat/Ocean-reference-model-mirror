@@ -1,13 +1,13 @@
 # Makefile to compile Fortran Code for the Ocean Reference Model Project
 #
-
-Fort = 'gfortran'
-#Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
+#Fort = 'gfortran'
+Fort = $(compil) # Fortran Compiler (from environmnnt variable 'compil')
 #				 # e.g. 'g77', 'gfortran'
+#
 #
 # SELECT Compiler options here
 # Opts = -Waliasing -Wall -Wampersand -Warray-bounds -Wc-binding-type -Wcharacter-truncation -Wconversion -Wfunction-elimination -Wimplicit-interface -Wimplicit-procedure -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-align-commons -Wno-tabs -Wreal-q-constant -Wsurprising -Wunderflow -Wunused-parameter -Wrealloc-lhs -Wrealloc-lhs-all -Wtarget-lifetime
-Opts = -fPIC
+Opts = -fPIC -pg -O3 -funroll-loops
 
 # Do not write command lines to screen before execution
 # 	Comment out to debug
@@ -162,12 +162,13 @@ NRCS : $(ObjectsNRCS)
 # Compile objects from *.f files
 %.o : %.f
 	echo Compiling $*.f
-	$(Fort) -c $*.f -o $*.o -O3 -funroll-loops
+	$(Fort) $(Opts) -c $*.f -o $*.o 
 	echo '  -->' $*.o created
 
 # Compile objects from *.f90 files
 %.o : %.f90
 	echo Compiling $*.f90
-	$(Fort) -c $*.f90 -fPIC -o $*.o -O3 -funroll-loops
+	$(Fort) $(Opts) -c $*.f90 -o $*.o 
 	echo '  -->' $*.o created
 #-----------------------------------------------------------------------
+
