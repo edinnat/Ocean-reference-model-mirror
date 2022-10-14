@@ -1,4 +1,4 @@
-subroutine foam_emiss(SalIn,SSTin,Frin,ThIn,ef_foam)
+subroutine foam_emiss(perm,SSTin,Frin,ThIn,ef_foam)
 
 ! -----------------------------------------------------------------------------------------------
 ! Created by Lise Kilic, France: Translated to Fortran from Yin et al. MATLAB code 
@@ -22,13 +22,13 @@ USE mod_foam_emiss
 IMPLICIT NONE
      
 ! Inputs     
- 	REAL (KIND=8) :: SalIn,SSTin,Frin,ThIn
-  	REAL (KIND=8) :: sst, sss, freq, thetai 
+ 	REAL (KIND=8) :: SSTin,Frin,ThIn
+  	REAL (KIND=8) :: sst, freq, thetai 
+    DOUBLE COMPLEX :: perm
 ! Internal
     integer :: i, i_t
   	REAL (KIND=8) :: evfoam, ehfoam, t, vafv, vafh
   	REAL (KIND=8) :: vafv_t(1:6), vafh_t(1:6), t_t(1:6), f_t(1:6), wght
-    DOUBLE COMPLEX :: perm
 
 ! Output				foam emiss in V and H pol for index 1 and 2, respectively
   	REAL (KIND=8) :: ef_foam(1:2)
@@ -79,10 +79,7 @@ IMPLICIT NONE
 	thetai = ThIn
 	
 	sst = SSTin + 2.7315D2
-	sss = SalIn
 
-! Computation of the water permittivity 
-	call epsilon_MW (sst-2.7315D2, sss, perm, freq*1.D9)
 
 ! The original foam emiss subroutine uses one void fraction value to return 2 ef values, for V and H pol
 ! To use the same subroutine with minimal change, call it twice, 

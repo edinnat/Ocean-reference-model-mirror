@@ -1831,12 +1831,12 @@ c-----------------------------------------------------------------------
 
       case (2:6)
 
-                call foam_Tb_Yin16 (fEmisEcume - 1, SSS(iSSS),
+                call foam_Tb_Yin16 (fEmisEcume - 1, epsi,
      &                          SST(iSST), nu, thetal, epsi_sf)
 
       case (7)  ! M-Du-Tune, Yin et al. (2016) tuned by freq and pol
 
-                call foam_emiss(SSS(iSSS), SST(iSST),
+                call foam_emiss(epsi, SST(iSST),
      &                           nu, thetal, epsi_sf)
 
       end select foamEmiss
