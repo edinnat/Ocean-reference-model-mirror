@@ -62,6 +62,7 @@ FilesEP = epsilon_KS.f epsilon_El.f epsilon_MW.f epsilon_hifreq.f
 #   Foam emissivity and foam fraction
 FilesEC = foam.f esf.f WISE2001.f MonahanLu.f foam_fr_Yin16.f foam_emiss_Yin16.f
 FilesEC += mod_foam_emiss.f90 foam_emiss.f90
+FilesEC += foam_fr_Kilic22.f90 foam_emiss_Kilic22.f90
 
 # 	Sea Spectrum
 FilesSP = c.f Su.f Sc.f P.f Sigma.f spectrum_DV_Base.f spectrum_DV.f spectrum_Lemaire.f 
