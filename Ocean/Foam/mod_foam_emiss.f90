@@ -69,15 +69,15 @@ CONTAINS
 	SommePaire = 0.D0
 	SommeImpaire = 0.D0
 
-! Calculation of the sum of the even indices
+! Calculation of the sum of the odd indices
 	DO i=1, n-1
-	SommePaire = SommePaire + &
+	SommeImpaire = SommeImpaire + &
 	       loss_factor((a+h*2.*i),t,thetai,vaf,vfw,m,hz,sigw_re,sigw_im)
     ENDDO
 
-! Calculation of the sum of the odd indices
+! Calculation of the sum of the even indices
 	DO i=1, n
-	SommeImpaire = SommeImpaire + &		
+	SommePaire = SommePaire + &
 	       loss_factor((a+h*(2.*i-1)),t,thetai,vaf,vfw,m,hz,sigw_re,sigw_im)
     ENDDO
 
@@ -147,8 +147,8 @@ CONTAINS
 	REAL (KIND=8) trans
 
 	eps1 = 1				! Air permittivity (layer 1)
-	n1 = sqrt(eps1) 			! Index of refraction for air, no further use
-	n2 = sqrt(eps2)				! Index of refraction for foam, no further use
+	n1 = sqrt(eps2) 			! Index of refraction for air, no further use
+	n2 = sqrt(eps3)				! Index of refraction for foam, no further use
 
 	theta1 = theta_i*pi/180 				
 	theta2 = asin(abs(n1/n2) * sin(theta1))*180/pi 	! Incidence angle in medium 2 (refracted)
@@ -160,7 +160,7 @@ CONTAINS
 	CALL ReflTransm_PlanarBoundary(eps1,eps2,theta_i,rhoh,rhov,gammah12,gammav12,tauh,tauv,Th,Tv);
 
 ! 23 interface (foam-seawater in our case; use foam permittivity for the foam-seawater boundary)
-	CALL ReflTransm_PlanarBoundary(eps3,epsw,theta2 ,rhoh,rhov,gammah23,gammav23,tauh,tauv,Th,Tv);
+	CALL ReflTransm_PlanarBoundary(eps2,eps3,theta2 ,rhoh,rhov,gammah23,gammav23,tauh,tauv,Th,Tv);
 
 ! extinction coefficient inside medium (foam layer in our case)
 	trans = exp(-kappa_e);
