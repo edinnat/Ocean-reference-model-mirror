@@ -762,6 +762,9 @@ c                ModSpectre = 'Power law'
         elseif ((cCouvEcume.eq.'M-Ku-S')) then
                 ModCouvEcume = 'Yin et al. 2016 - M-Ku-S'
                 fCouvEcume = 10
+        elseif ((cCouvEcume.eq.'K').or.(cCouvEcume.eq.'k')) then
+                ModCouvEcume = 'Kilic et al. 2022'
+                fCouvEcume = 11
         else
                 write(*,*)
                 print *,'Invalid choice for foam fraction model.'//
@@ -801,6 +804,9 @@ c                ModSpectre = 'Power law'
         elseif ((cEmisEcume.eq.'M-Du-Tune')) then
                 ModEmisEcume = 'Yin et al. 2016 - M-Du-Tune'
                 fEmisEcume = 7
+        elseif ((cEmisEcume.eq.'K').or.(cEmisEcume.eq.'k')) then
+                ModEmisEcume = 'Kilic et al., 2022'
+                fEmisEcume = 8
         else
                 write(*,*)
                 print *,'Invalid choice for foam emissivity model.'//
@@ -825,7 +831,7 @@ c       emissivity when using Yin et al. 2016
 
            write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
      &foam emissivity are inconsistent.'
-           print *,
+           print *, ' '
            write(*,*) 'The Yin et al. 2016 should use the same model com
      &ponent for fraction and emissivity. Current selection is : '
            write(*,*) '  Fraction = '//cCouvEcume
@@ -843,7 +849,7 @@ c       emissivity when using the frequency Tuned model Anguelova et al. 2022
 
            write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
      &foam emissivity are inconsistent.'
-           print *,
+           print *, ' '
            write(*,*) 'The frequency tuned foam emissivity model (Anguel
      &ova et al. 2022) was optimized for the foam coverage fraction M1
      &(Monahan & O''Muircheartaigh , 1986). Current selection is : '
@@ -1363,6 +1369,8 @@ c  Foam coverage fraction with dependence on atmospheric stability
                 call WISE2001(U10, Fr)
         elseif ((fCouvEcume.ge.6).and.(fCouvEcume.le.10)) then
                 call foam_fr_Yin16(U10, cCouvEcume, Fr)
+        elseif (fCouvEcume.eq.11) then
+                call foam_fr_Kilic22(U10, Fr)
         elseif (fCouvEcume.eq.0) then
                 Fr  = 0.0D0
         else
@@ -1838,6 +1846,10 @@ c-----------------------------------------------------------------------
 
                 call foam_emiss(epsi, SST(iSST),
      &                           nu, thetal, epsi_sf)
+      case (8)  ! Kilic et al., 2022
+
+                call foam_Tb_Kilic22(epsi, SST(iSST),
+     &                           nu, thetal, epsi_sf)
 
       end select foamEmiss
 
@@ -2238,8 +2250,8 @@ c Write to output file and screen
         write(*,*) ''
         write(*,*) '----------   Results   ---------'
         write(*,*) '-- No Atmosphere & No Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
+     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr-Fr, Tv0_SPM, Th0_SPM, T30_SPM
@@ -2271,10 +2283,10 @@ c Write to output file and screen
      &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
 
         write(*,*) '-- No Atmosphere & With Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2,
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi),
      &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
 
 c ------- WITH ATMO & NO FOAM  ----------
@@ -2299,8 +2311,8 @@ c Write to output file and screen
      &                  Sc*Sc, Fr-Fr
 
         write(*,*) '-- With Atmosphere & No Foam'
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
+     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr-Fr
@@ -2327,10 +2339,10 @@ c Write to output file and screen
      &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
 
         write(*,*) '-- With Atmosphere & With Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2,
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi),
      &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
 
 
