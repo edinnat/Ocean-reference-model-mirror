@@ -9,7 +9,7 @@ c   incidence angle (theta), and the azimuth angle between the sensor's
 c   observation direction and the wind vector (phi). The emissivity model can
 c   use 3 different configurations for the interactions between the 
 c   electromagnetic waves and the surface roughness: a Geometrical Optics (GO)
-c   model valid for waves larger than the sensor¿s wavelength, a Small 
+c   model valid for waves larger than the sensorÂ¿s wavelength, a Small 
 c   Perturbation Method (SPM) for waves with small height and a two-scale model
 c   (SPM) which is commonly used for its validity over the multiple roughness 
 c   scales of the ocean surface.
@@ -29,11 +29,13 @@ c   More details about the model can be found in :
 c
 c   Dinnat, E. P., Boutin, J., Caudal, G., & Etcheto, J. (2003). Issues concerning the sea emissivity modeling at L band for retrieving surface salinity. Radio Science, 38(4). https://doi.org/10.1029/2002RS002637
 c
-c   Dinnat, E. P. (2003). De la détermination de la salinité de surface des océans à partir de mesures radiométriques hyperfréquence en bande L,  Université Pierre et Marie Curie - Paris VI. https://tel.archives-ouvertes.fr/tel-00003277
+c   Dinnat, E. P. (2003). De la dÃ©termination de la salinitÃ© de surface des ocÃ©ans Ã  partir de mesures radiomÃ©triques hyperfrÃ©quence en bande L,  UniversitÃ© Pierre et Marie Curie - Paris VI. https://tel.archives-ouvertes.fr/tel-00003277
 c
-c   Yueh, S. H. (1997). Modeling of wind direction signals in polarimetric sea surface brightness temperatures. IEEE Transactions on Geoscience and Remote Sensing, 35(6), 1400¿1418. https://doi.org/10.1109/36.649793
+c   Yueh, S. H. (1997). Modeling of wind direction signals in polarimetric sea surface brightness temperatures. IEEE Transactions on Geoscience and Remote Sensing, 35(6), 1400Â¿1418. https://doi.org/10.1109/36.649793
 c
 c-----------------------------------------------------------------------
+
+         use interp_func
 
         implicit none
 
@@ -117,6 +119,7 @@ c Variable Declarations
         character*40 ModCouvEcume
         character*40 ModEmisEcume
         character*40 ModCD
+        character*40 ModMR
         character*10 date
         character*8 time
    
@@ -220,6 +223,27 @@ c Variable Declarations
         double precision C2
         double precision C7
         double precision Norm2
+        ! Multi-reflection variables
+        double precision thetaMR(1:181)  ! scattering angle for multi-reflection tablation
+        double precision NormMR(1:181)
+        double precision r_v0
+        double precision r_h0
+        double precision w_SESR0
+        double precision w_SESR_1(1:181)
+        double precision r_v_1(1:181) ! MR emissivity of order i
+        double precision r_h_1(1:181) 
+        double precision w_SESR_2(1:181)
+        double precision r_v_2(1:181) ! MR emissivity of order i+1
+        double precision r_h_2(1:181)
+        double precision r_v_f(1:181) ! Final MR emissivity with accumulated orders 1 -> iMRodr
+        double precision r_h_f(1:181)
+        double precision cothetn
+        double precision cothetn2
+        double precision cothetp ! incidence angle of reflected contrb
+        double precision thetp
+        double precision dTv_MR ! contribution of multi-reflections to TB
+        double precision dTh_MR
+        !
         double precision cothet
         double precision sithet
         double precision cophi
@@ -363,6 +387,12 @@ c Variable Declarations
         integer sortiestab(1:2)
         integer NSwell (1:2) ! Number of sample to tabulate Swell PDF
         integer ikfilt ! index for Kudryavtsev filters
+        ! Multi-reflection
+        integer iMR ! model choice for multi-reflection
+        integer iMRodr ! Order of multi-reflection computation
+        integer iOdr ! To loop on MR Orders
+        integer iSx
+        integer iSy
         
         logical fin1exist
  
@@ -517,6 +547,9 @@ c------------------ READ INPUT PARAMETERS -----------------------------
                 else
                    open (unit=20,file=pathout(1:lnblnk(pathout))//fout2
      &,status='unknown')
+                   ! Save intermediate results (i.e. SPM and GO only )
+                   open (unit=22,file=pathout(1:lnblnk(pathout))//'Int_'
+     &//fout2,status='unknown')
                    open (unit=25,file=pathout(1:lnblnk(pathout))//"Atm_"
      &//fout2,status='unknown')
                         nsorties = 1
@@ -538,6 +571,9 @@ c------------------ READ INPUT PARAMETERS -----------------------------
                 else
                    open (unit=20,file=pathout(1:lnblnk(pathout))//fout2,
      &status='unknown')
+                   ! Save intermediate results (i.e. SPM and GO only )
+                   open (unit=22,file=pathout(1:lnblnk(pathout))//'Int_'
+     &//fout2,status='unknown')
                    open (unit=25,file=pathout(1:lnblnk(pathout))//"Atm_"
      &//fout2,status='unknown')
                         nsorties = 2
@@ -620,6 +656,14 @@ c------------------ READ INPUT PARAMETERS -----------------------------
         read (30,*) N2                ! Number of integration steps on slopes Sy
      	read (30,'(a)') jump_line
         read (30,*) xVar              ! Limit for integration on slopes (xVar x Variance)
+        ! Read Multi Reflection Parameters
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,'(a)') jump_line
+        read (30,*) iMR              ! Model choice for multi-reflection
+        read (30,'(a)') jump_line
+        read (30,*) iMRodr           ! Order of multi-reflection
         
 
 
@@ -923,6 +967,22 @@ c       range in frequency
                 stop
         endif
 
+        select case (iMR)
+            case (0)
+                ModMR = 'Skipped (not computed)'
+            case (1)
+                ModMR = 'Masuda (2006)'
+            case default
+                write(*,*)
+                print *,'Invalid choice for multi-reflections model'
+                print *,'  Possible choices are:'
+                print *,'     0 : Skipped (not computed)'
+                print *,'     1 : Masuda (2006)' 
+                print *,'Current choice is: ', iMR
+                write(*,*)
+                stop
+         end select
+
 c---------------- WRITE INPUT VARIABLES IN OUTPUT FILES --------------
 
         if (nsorties.ge.1) then
@@ -982,15 +1042,29 @@ c---------------- WRITE INPUT VARIABLES IN OUTPUT FILES --------------
                 stop
         endif
         write (ufile,*) 'Model for drag coefficient = ',ModCD,' ;'
-        write (ufile,*) '! freq        SST   SSS     U10   ustar'
-     &  //' theta  ' 
-     &  //' TvN    ThN     Tv0      Th0    Tv1    Th1    U1      V1    '
-     &  //' Tv2   Th2    U2      V2    lam_d    Stab Re(epsi)I(epsi)'
-     &  //' Var_u    Var_c      Foam;'
+        write (ufile,*) 'Model for multi-reflection = ', ModMR,' ;'
+
+
+        ! Labels for columns of data
+        write (ufile,*) ' ! 1:freq   2:SST 3:SSS  4:U10 5:ustar 6:theta'
+     &  //' 7:TvN  8:ThN     9:Tv0      10:Th0   11:Tv1    12:Th1      '
+     &  //'13:U1      14:V1      15:Tv2     16:Th2    17:U2       18:V2'
+     &  //'    19:lam_d 20:Stab 21:Re(epsi) 22:I(epsi) 23:Var_u '
+     &  //'24:Var_c      25:Foam  26:dTV MR 27:dTh MR ;'
         write (ufile,*) '! dielectric constant: e = Re(e) + i Im(e) $'
 
         enddo
         endif ! if (nsorties.ge.1)
+
+        ! Labels for intermediate results file
+        write(22,*) 'Intermediate results - SPM-only and GO-only TBs ;' 
+
+        write(22,*) ' ! 1:freq   2:SST 3:SSS  4:U10 5:ustar 6:theta'
+     &  //' 7:Tv0 SPM 8:Th0 SPM 9:T30 SPM 10:T40 SPM 11:Tv2 SPM'
+     &  //' 12:Th2 SPM 13:T32 SPM 14:T42 SPM 15:Tv0 GO 16:Th0 GO'
+     &  //' 17:Tv1 GO 18:Th1 GO 19:T31 GO 20:T41 GO 21:Tv2 GO'
+     &  //' 22:Th2 GO 23:T32 GO 24:T42 GO $'
+
         
 c---------------------------------------------------------------------
 c------------------ MAIN PROGRAM        ------------------------------
@@ -1386,6 +1460,217 @@ c  Foam coverage fraction with dependence on atmospheric stability
         close (50)
 
 c----------------------------------------------------------------------
+c              TABULATION OF MULTI-REFLECTIONS
+
+        ! This section is largely disconnected from the rest of the
+        ! computation. This could be inserted into the integration on the
+        ! slopes of the rest of the model but:
+        !     * multiple iteration of the integration on slopes are needed due to the multiple orders
+        !       and even the weigting function at order 1, so additional
+        !       independent code will still be needed
+        !     * Model can be ran in small-scale mode only that bypass
+        !      the integration on slopes
+        !   => this section is executed independly of the rest of the
+        !   model for now ...
+
+      if (iMR.eq.1) then
+
+      write (*,*) ' Tabulating multi-reflection ...'
+
+      ! Sampling param
+
+        ! emission angles (deg)
+        thetaMR = (/(itheta*1.D0, itheta=0, 180)/)
+        ! azimuth angles (deg) TODO assess, validate and implement
+        ! azimuth angle dependence of MR code
+        phi = 0.D0
+
+        cophi = dcosd(phi)
+        siphi = dsind(phi)
+
+        ! Slope sample numbers in x and y directions and max variance
+        !   Use same as 2-scale model : N1, N2, xVar
+
+        ! Initnialize MR emissivity accumulated order 1 -> iMRodr
+
+        r_v_f = 0.D0
+        r_h_f = 0.D0
+
+        ! Upper Bounds for integration on Slopes from Slope variances
+
+        Sy_sup =  xVar*Sc
+        Sy_inf = -xVar*Sc
+        del1 = (Sy_sup-Sy_inf)/(N1-1)
+
+        Sx_sup =  xVar*Su
+        Sx_inf = -xVar*Su
+        del2 = (Sx_sup-Sx_inf)/(N2-1)
+
+      ! Loop on SESR orders
+
+      do iOdr = 0, iMRodr        
+
+! ---------- LOOP on Observation Zenith angles to sample ----------
+
+        do itheta = 1, 181
+
+      ! Compute Geometric Constants
+
+        C2 = dtand(thetaMR(itheta))
+
+        
+        if (C2.ne.0.D0) then
+
+            C7 = 1.D0/C2
+
+        else
+
+            C7 = 1.D+99
+
+        endif
+
+        cothet = dcosd(thetaMR(itheta))
+        sithet = dsind(thetaMR(itheta))
+
+
+! Initialize integrated quantities before starting integral loops
+
+        NormMR(itheta) = 0.D0 ! Normalization of PDF
+        r_v_2(itheta) = 0.D0 ! SESR emissivity at i+i 
+        r_h_2(itheta) = 0.D0 ! 
+
+! Start Loop on Sy
+
+       do iSy = 0, N1-1
+
+           Sy = Sy_inf + iSy * del1
+
+! Start loop Sx
+
+      do iSx = 0, N2-1
+
+           Sx = Sx_inf + iSx * del2
+
+           ! Slope in the observer's direction
+           Sx_ = Sx * cophi + Sy * siphi
+          
+           ! Projection in observer direction 
+           ! /!\ Modified from Yueh 1997 to remove 1/cos(thetaMR)
+           ! dependence to allow thetaMR = 90 deg or above 
+           ! for multiple reflections. 1/cos(thetaMR) simplies away from
+           ! normalizing by NormMR the ratio 
+           ! 1.0D0 - Sx_ * C2 = ( cos(thetaMR) - Sx_ * sin(thetaMR) ) /
+           ! cos(thetaMR) = >  cos(thetaMR) - Sx_ * sin(thetaMR) 
+           ! after cos(theta) is taken out of the integral and simplfies between numerator & denominator
+
+           projec = cothet - Sx_ * sithet
+      
+        call Glob2Loc(thetaMR(itheta), phi, Sx, Sy, thetal, phil,
+     c      cosAlpha, sinAlpha)
+
+        sinl = dsind(thetal)
+        cosl = dcosd(thetal)
+
+        cothetn2 = 1/(Sx*Sx + Sy*Sy + 1.D0)
+        cothetn  = sqrt(cothetn2)
+
+        cothetp = -2*cosl*cothetn + cothet ! TODO check if valid for phiG nt 0 or if need to project in observer azimuth
+        thetp  = dacosd(cothetp)
+
+!   TODO ? replace call to Glob2Loc with possibly faster computation of
+!   cosl as (Masuda 2006):
+!   cosl = cothet*cothetn + sithet*sqrt(1 - cothetn2 )*(-Sx/dsqrt(Sx*Sx + Sy*Sy)))
+!  Possibly faster ..
+
+
+! Fresnel Reflection Coefficients        
+
+        Rvv0 = (epsi*cosl - sqrt(epsi-sinl*sinl))/
+     c         (epsi*cosl + sqrt(epsi-sinl*sinl))
+        Rhh0 = (cosl - sqrt(epsi-sinl*sinl))/
+     c         (cosl + sqrt(epsi-sinl*sinl))
+        Rvv0 = abs(Rvv0) 
+        Rhh0 = abs(Rhh0) 
+        Rvv0 = Rvv0*Rvv0
+        Rhh0 = Rhh0*Rhh0
+
+!-----------------------------------------------------------------------
+!                 COMPUTE SLOPE PDF
+!-----------------------------------------------------------------------
+
+      call P (Sx, Sy, P_Sx_Sy, Su, Sc)
+
+      ! Increment Normalizations always
+
+      if (Sx_.le.C7) then ! Increment emissivity only for non shadowed waves
+
+          if (iOdr.eq.0) then ! First order computation: r_v0 and r_h0 are direct emissivity (1 - Rvv0/Rhh0),
+                         ! reflecivity Rvv0 and Rhh0 is 1 and weight w_SESR0 is 1
+
+               w_SESR0 = 1.0D0
+               r_v0 = (1.D0 - Rvv0)
+               r_h0 = (1.D0 - Rhh0)
+               Rvv0 = 1.0D0
+               Rhh0 = 1.0D0
+
+          else ! otherwise : weight and emissivity is interpolated on LUT of previous order values
+
+              call interp(thetaMR, W_SESR_1, thetp, w_SESR0)
+              call interp(thetaMR, r_v_1, thetp, r_v0 )
+              call interp(thetaMR, r_h_1, thetp, r_h0 )
+
+          endif ! (iOdr.eq.1)
+
+         NormMR(itheta) = NormMR(itheta) + projec*P_Sx_Sy*del1*del2
+         r_v_2(itheta) = r_v_2(itheta) + r_v0*w_SESR0*Rvv0*projec*
+     c                   P_Sx_Sy*del1*del2
+         r_h_2(itheta) = r_h_2(itheta) + r_h0*w_SESR0*Rhh0*projec*
+     c                   P_Sx_Sy*del1*del2
+
+      endif
+
+      enddo ! do iSy
+
+      enddo ! do iSx
+
+! Normalize emissivity      
+
+      r_v_2(itheta) = r_v_2(itheta)/NormMR(itheta)
+      r_h_2(itheta) = r_h_2(itheta)/NormMR(itheta)
+
+      w_SESR_2(itheta) = 1 - dcosd(180.D0 - thetaMR(itheta))/
+     c                  NormMR(182 -itheta)
+
+      enddo ! do itheta
+
+      r_v_2 = merge( 0.D0, r_v_2 , isnan(r_v_2) )
+      r_h_2 = merge( 0.D0, r_h_2 , isnan(r_h_2) )
+
+      w_SESR_2 = merge( w_SESR_2, 1.0D0, thetaMR.gt.90.D0)
+
+      ! Save i result as input to i+1 iteration
+
+      r_v_1 = r_v_2
+      r_h_1 = r_h_2
+      w_SESR_1 = w_SESR_2
+
+      if (iOdr.ge.1) then
+
+        r_v_f = r_v_f + r_v_1  
+        r_h_f = r_h_f + r_h_1  
+
+
+      endif ! (iOdr.ge.1)
+
+      enddo ! do iOdr
+
+      write (*,*) ' ... Done !'
+
+      endif  ! (iMR.eq.1)
+
+c  ----------------- END TABULATION MULTI-REFLECTION ------------------
+
+c----------------------------------------------------------------------
 c              TABULATION OF SCATTERING VECTOR
 
         if (fDiff.eq.1) then
@@ -1590,12 +1875,12 @@ c Write to file and screen
      &                  theta_1, Tvn, Thn, Tv0, Th0,
      &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                  Sc*Sc, Fr
+     &                  Sc*Sc, Fr-Fr ! Fr-Fr because output for no-foam
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
      &                 theta_1, Tvn, Thn, Tv0, Th0, 
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                 Sc*Sc, Fr
+     &                 Sc*Sc, Fr-Fr
       endif
 
 c  END Loop on local incidence angles Theta_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2156,10 +2441,10 @@ c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 c----------------------------------------------------------------------
 c                       COMPUTE TB HARMONIC COEFFICIENTS
 c
-c int1(1,1) : Tb vertical at phi = TPHI(1) = 0°
-c int1(1,2) : Tb vertical at phi = TPHI(2) = 45°
-c int1(1,3) : Tb vertical at phi = TPHI(3) = 90°
-c int1(1,4) : Tb vertical at phi = TPHI(4) = 180°
+c int1(1,1) : Tb vertical at phi = TPHI(1) = 0Â°
+c int1(1,2) : Tb vertical at phi = TPHI(2) = 45Â°
+c int1(1,3) : Tb vertical at phi = TPHI(3) = 90Â°
+c int1(1,4) : Tb vertical at phi = TPHI(4) = 180Â°
 c First indice in int1 defines Stokes parameter and 
 c ranges from 1 to 4 for Tv, Th, U et V respectively.
 
@@ -2241,11 +2526,15 @@ c Write to output file and screen
      &                  theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                  Sc*Sc, Fr-Fr, Tv0_SPM, Th0_SPM, T30_SPM
+     &                  Sc*Sc, Fr-Fr, dTv_MR, dTh_MR
+
+        write (22,1100) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+     &                  theta(itheta), Tv0_SPM, Th0_SPM, T30_SPM
      &                  , T40_SPM, Tv2_SPM, Th2_SPM, T32_SPM,
      &                   T42_SPM, Tv0_GO, Th0_GO, Tv1_GO
      &                 , Th1_GO, T31_GO, T41_GO, Tv2_GO, Th2_GO, T32_GO,
      &                  T42_GO
+
 
         write(*,*) ''
         write(*,*) '----------   Results   ---------'
@@ -2254,11 +2543,7 @@ c Write to output file and screen
      &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                 Sc*Sc, Fr-Fr, Tv0_SPM, Th0_SPM, T30_SPM
-     &                 , T40_SPM, Tv2_SPM, Th2_SPM, T32_SPM,
-     &                  T42_SPM, Tv0_GO, Th0_GO, Tv1_GO
-     &                 , Th1_GO, T31_GO, T41_GO, Tv2_GO, Th2_GO, T32_GO,
-     &                  T42_GO
+     &                 Sc*Sc, Fr-Fr, dTv_MR, dTh_MR ! Fr-Fr because output for no-foam
 
 
 c ------- NO ATMO & WITH FOAM  ----------
@@ -2274,20 +2559,31 @@ c ------- NO ATMO & WITH FOAM  ----------
         U2  = int1e(3,2) - int1e(3,3)
         V2  = int1e(4,2) - int1e(4,3)
 
+c  -------- Interpolate Multi-Reflection at requested Incidence angle -------
+
+        call interp ( thetaMR, r_v_f, theta(itheta), dTv_MR ) ! dTv_MR needs to be converted to TB (emiss here)
+        call interp ( thetaMR, r_h_f, theta(itheta), dTh_MR )
+
+        dTv_MR = dTv_MR*(273.15 + SST(iSST) )
+        dTh_MR = dTh_MR*(273.15 + SST(iSST) )
+
 c Write to output file and screen
 
         write (10,1000) nu, SST(iSST), SSS(iSSS), U10, 
      &                 ustar*100, theta(itheta), Tvn, Thn,
      &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
      &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0,
+     &                  dTv_MR, dTh_MR
 
         write(*,*) '-- No Atmosphere & With Foam '
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2,
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi),
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0,
+     &                  dTv_MR, dTh_MR
+
 
 c ------- WITH ATMO & NO FOAM  ----------
 
@@ -2308,14 +2604,14 @@ c Write to output file and screen
      &                  theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                  Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                  , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                  Sc*Sc, Fr-Fr
+     &                  Sc*Sc, Fr-Fr, dTv_MR, dTh_MR
 
         write(*,*) '-- With Atmosphere & No Foam'
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
-     &                 Sc*Sc, Fr-Fr
+     &                 Sc*Sc, Fr-Fr, dTv_MR, dTh_MR ! Fr-Fr because output for no-foam
 
 c ------- WITH ATMO & WITH FOAM  ----------
 
@@ -2336,14 +2632,16 @@ c Write to output file and screen
      &                 ustar*100, theta(itheta), Tvn, Thn,
      &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
      &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0, 
+     &                  dTv_MR, dTh_MR
 
         write(*,*) '-- With Atmosphere & With Foam '
         write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
-     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2,
-     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi),
-     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0
+     &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
+     &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
+     &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0,
+     &                  dTv_MR, dTh_MR
 
 
 
@@ -2379,6 +2677,7 @@ c Close open files
         close (10)
         close (15)
         close (20)
+        close (22)
         close (25)
         close (30)
         close (60)
@@ -2386,9 +2685,11 @@ c Close open files
 c ---------- Formats --------------------------      
   100     format (1x,f5.2,4(1x,f4.1),2(1x,f6.2),2(1x,f6.2)
      &          ,8(1x,f5.2))
- 1000     format (1x,f12.5,1x,f5.2,1x,f6.3,2(1x,f6.2),1x,f4.1,4(1x,f7.3),
+ 1000   format (1x,f12.5,1x,f5.2,1x,f6.3,2(1x,f6.2),1x,f4.1,4(1x,f7.3),
      &        8(1x,f6.3),1x,e9.3,1x,f5.2,2(1x,f6.2),2(1x,e9.3),1x,f5.1,
-     &       18(1x,f7.3))
+     &       2(1x,f7.3))
+ 1100   format (1x,f12.5,1x,f5.2,1x,f6.3,2(1x,f6.2),1x,f4.1,18(1x,f7.3))
+ 
         stop
 
 c ---------- Error messages --------------------------      

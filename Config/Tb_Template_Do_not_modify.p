@@ -102,3 +102,13 @@ c-----------------------------------------------------------------------
 200
 -- Upper limit of integration on slope distribution (in number of slope variance)
 5.
+c-----------------------------------------------------------------------
+-               COMPONENT FOR MULTI RELFECTION                         -
+c-----------------------------------------------------------------------
+--   Run component (y:yes ; n = no)
+y
+--   Model to use (1 : Masuda 2006 )
+1
+--   Orders of multi-reflection to run
+2 
+
