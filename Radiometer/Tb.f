@@ -9,7 +9,7 @@ c   incidence angle (theta), and the azimuth angle between the sensor's
 c   observation direction and the wind vector (phi). The emissivity model can
 c   use 3 different configurations for the interactions between the 
 c   electromagnetic waves and the surface roughness: a Geometrical Optics (GO)
-c   model valid for waves larger than the sensor¿s wavelength, a Small 
+c   model valid for waves larger than the sensorÂ¿s wavelength, a Small 
 c   Perturbation Method (SPM) for waves with small height and a two-scale model
 c   (SPM) which is commonly used for its validity over the multiple roughness 
 c   scales of the ocean surface.
@@ -29,9 +29,9 @@ c   More details about the model can be found in :
 c
 c   Dinnat, E. P., Boutin, J., Caudal, G., & Etcheto, J. (2003). Issues concerning the sea emissivity modeling at L band for retrieving surface salinity. Radio Science, 38(4). https://doi.org/10.1029/2002RS002637
 c
-c   Dinnat, E. P. (2003). De la détermination de la salinité de surface des océans à partir de mesures radiométriques hyperfréquence en bande L,  Université Pierre et Marie Curie - Paris VI. https://tel.archives-ouvertes.fr/tel-00003277
+c   Dinnat, E. P. (2003). De la dÃ©termination de la salinitÃ© de surface des ocÃ©ans Ã  partir de mesures radiomÃ©triques hyperfrÃ©quence en bande L,  UniversitÃ© Pierre et Marie Curie - Paris VI. https://tel.archives-ouvertes.fr/tel-00003277
 c
-c   Yueh, S. H. (1997). Modeling of wind direction signals in polarimetric sea surface brightness temperatures. IEEE Transactions on Geoscience and Remote Sensing, 35(6), 1400¿1418. https://doi.org/10.1109/36.649793
+c   Yueh, S. H. (1997). Modeling of wind direction signals in polarimetric sea surface brightness temperatures. IEEE Transactions on Geoscience and Remote Sensing, 35(6), 1400Â¿1418. https://doi.org/10.1109/36.649793
 c
 c-----------------------------------------------------------------------
 
@@ -806,6 +806,9 @@ c                ModSpectre = 'Power law'
         elseif ((cCouvEcume.eq.'M-Ku-S')) then
                 ModCouvEcume = 'Yin et al. 2016 - M-Ku-S'
                 fCouvEcume = 10
+        elseif ((cCouvEcume.eq.'K').or.(cCouvEcume.eq.'k')) then
+                ModCouvEcume = 'Kilic et al. 2022'
+                fCouvEcume = 11
         else
                 write(*,*)
                 print *,'Invalid choice for foam fraction model.'//
@@ -845,6 +848,9 @@ c                ModSpectre = 'Power law'
         elseif ((cEmisEcume.eq.'M-Du-Tune')) then
                 ModEmisEcume = 'Yin et al. 2016 - M-Du-Tune'
                 fEmisEcume = 7
+        elseif ((cEmisEcume.eq.'K').or.(cEmisEcume.eq.'k')) then
+                ModEmisEcume = 'Kilic et al., 2022'
+                fEmisEcume = 8
         else
                 write(*,*)
                 print *,'Invalid choice for foam emissivity model.'//
@@ -869,7 +875,7 @@ c       emissivity when using Yin et al. 2016
 
            write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
      &foam emissivity are inconsistent.'
-           print *,
+           print *, ' '
            write(*,*) 'The Yin et al. 2016 should use the same model com
      &ponent for fraction and emissivity. Current selection is : '
            write(*,*) '  Fraction = '//cCouvEcume
@@ -887,7 +893,7 @@ c       emissivity when using the frequency Tuned model Anguelova et al. 2022
 
            write(*,*) '  /!\ WARNING /!\ : Models for foam fraction and
      &foam emissivity are inconsistent.'
-           print *,
+           print *, ' '
            write(*,*) 'The frequency tuned foam emissivity model (Anguel
      &ova et al. 2022) was optimized for the foam coverage fraction M1
      &(Monahan & O''Muircheartaigh , 1986). Current selection is : '
@@ -1437,6 +1443,8 @@ c  Foam coverage fraction with dependence on atmospheric stability
                 call WISE2001(U10, Fr)
         elseif ((fCouvEcume.ge.6).and.(fCouvEcume.le.10)) then
                 call foam_fr_Yin16(U10, cCouvEcume, Fr)
+        elseif (fCouvEcume.eq.11) then
+                call foam_fr_Kilic22(U10, Fr)
         elseif (fCouvEcume.eq.0) then
                 Fr  = 0.0D0
         else
@@ -2123,6 +2131,10 @@ c-----------------------------------------------------------------------
 
                 call foam_emiss(epsi, SST(iSST),
      &                           nu, thetal, epsi_sf)
+      case (8)  ! Kilic et al., 2022
+
+                call foam_Tb_Kilic22(epsi, SST(iSST),
+     &                           nu, thetal, epsi_sf)
 
       end select foamEmiss
 
@@ -2429,10 +2441,10 @@ c<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 c----------------------------------------------------------------------
 c                       COMPUTE TB HARMONIC COEFFICIENTS
 c
-c int1(1,1) : Tb vertical at phi = TPHI(1) = 0°
-c int1(1,2) : Tb vertical at phi = TPHI(2) = 45°
-c int1(1,3) : Tb vertical at phi = TPHI(3) = 90°
-c int1(1,4) : Tb vertical at phi = TPHI(4) = 180°
+c int1(1,1) : Tb vertical at phi = TPHI(1) = 0Â°
+c int1(1,2) : Tb vertical at phi = TPHI(2) = 45Â°
+c int1(1,3) : Tb vertical at phi = TPHI(3) = 90Â°
+c int1(1,4) : Tb vertical at phi = TPHI(4) = 180Â°
 c First indice in int1 defines Stokes parameter and 
 c ranges from 1 to 4 for Tv, Th, U et V respectively.
 
@@ -2527,8 +2539,8 @@ c Write to output file and screen
         write(*,*) ''
         write(*,*) '----------   Results   ---------'
         write(*,*) '-- No Atmosphere & No Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
+     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr-Fr, dTv_MR, dTh_MR ! Fr-Fr because output for no-foam
@@ -2565,12 +2577,13 @@ c Write to output file and screen
      &                  dTv_MR, dTh_MR
 
         write(*,*) '-- No Atmosphere & With Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
      &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
      &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
      &                  imagpart(epsi), Su*Su, Sc*Sc, Fr*100.0D0,
      &                  dTv_MR, dTh_MR
+
 
 c ------- WITH ATMO & NO FOAM  ----------
 
@@ -2594,8 +2607,8 @@ c Write to output file and screen
      &                  Sc*Sc, Fr-Fr, dTv_MR, dTh_MR
 
         write(*,*) '-- With Atmosphere & No Foam'
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
-     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn), 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
+     &                 theta(itheta), Tvn, Thn, (Tv0-Tvn), (Th0-Thn),
      &                 Tv1, Th1, U1, V1, Tv2, Th2, U2, V2, lambdad
      &                 , Stab(1), realpart(epsi),imagpart(epsi), Su*Su,
      &                 Sc*Sc, Fr-Fr, dTv_MR, dTh_MR ! Fr-Fr because output for no-foam
@@ -2623,7 +2636,7 @@ c Write to output file and screen
      &                  dTv_MR, dTh_MR
 
         write(*,*) '-- With Atmosphere & With Foam '
-        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100, 
+        write (*,1000) nu, SST(iSST), SSS(iSSS), U10, ustar*100,
      &                 theta(itheta), Tvn, Thn,
      &                (Tv0-Tvn), (Th0-Thn), Tv1, Th1, U1, V1, Tv2, 
      &                Th2, U2, V2, lambdad, Stab(1), realpart(epsi), 
