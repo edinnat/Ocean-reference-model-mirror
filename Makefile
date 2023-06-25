@@ -78,7 +78,7 @@ FilesDI = Gvv2.f Gvv1.f Ghh2.f Ghh1.f Gvh1.f Ghv1.f Ghv2.f
 FilesNU = qromb2D1.f qromb2D2.f dichoto.f trapzd2D1.f polint.f qromb.f 
 FilesNU += trapzd.f trapzd2D2.f zroots.f laguer.f mylib.f 
 FilesNU += root.f extr_val.f
-FilesNU += spline.f splint.f
+FilesNU += spline.f splint.f interp_func.f90
 
 # Geometric Transformations
 FilesGE = Glob2Loc.f Loc2Glob.f
